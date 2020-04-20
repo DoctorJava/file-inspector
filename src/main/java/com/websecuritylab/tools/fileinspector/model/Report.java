@@ -7,9 +7,13 @@ import java.util.Map;
 
 public class Report {
 	public String app;
+						// Use Maps to ensure unique paths
+	private Map<String, FileSummary> fileSummaryMap = new HashMap<>();
+	private Map<String, List<FileDetail>> fileDetailMap = new HashMap<>();
 	
-	public Map<String, FileSummary> fileSummary = new HashMap<>();
-	public Map<String, List<FileMatches>> fileDetails = new HashMap<>();
+						// Use Lists in JSON for readability and converting to JS objects
+	//private List<FileSummary> summary;			
+	//private List<List <FileDetail>> details;
 	
 	public Report(String app) {
 		this.app = app;
@@ -30,27 +34,35 @@ public class Report {
 			System.out.println("Ignoring filename match: " + mKey );
 			return;
 		}
-	    if ( fileSummary.containsKey( fKey )) {
+	    if ( fileSummaryMap.containsKey( fKey )) {
 	    	// System.out.println("Already got: " + r.Filename);
-	    	if ( fileSummary.get(fKey).matchCount.containsKey( mKey )) {
-	    		Map<String, Integer> mc = fileSummary.get(fKey).matchCount;
-	    		mc.put(mKey, mc.get(mKey) + 1);    		
-	    	} else {
-	    		fileSummary.get(fKey).matchCount.put(fKey, new Integer(1));
-	    	}
-	    	fileDetails.get(fKey).add(new FileMatches(r.Filename,r.Path));
+	    	fileSummaryMap.get(fKey).addMatch(r);
+
+	    	fileDetailMap.get(fKey).add(new FileDetail(r.Filename,r.Path));
 	    }else {
 	    	//System.out.println("Got new: " + r.Filename);
 	    	
 	    	FileSummary fs = new FileSummary(r.Filename,r.Path);
-	    	fs.matchCount.put(mKey, new Integer(1));
-	    	fileSummary.put(fKey, fs);
+	    	fs.addMatch(r);
+	    	fileSummaryMap.put(fKey, fs);
     	
-	    	FileMatches fm = new FileMatches(r.Filename,r.Path);
+	    	FileDetail fm = new FileDetail(r.Filename,r.Path);
 	    	fm.addMatch(r);
-	    	List<FileMatches> fmList = new ArrayList<>();
+	    	List<FileDetail> fmList = new ArrayList<>();
 	    	fmList.add(fm);
-	    	fileDetails.put(fKey, fmList);
+	    	fileDetailMap.put(fKey, fmList);
 	    }
 	}
+
+	public List<FileSummary> getSummary() {
+		return new ArrayList<FileSummary>(fileSummaryMap.values());
+	}
+
+	public List<List <FileDetail>> getDetails() {
+		return new ArrayList<List <FileDetail>>(fileDetailMap.values());
+	}
+
+
+	
+	
 }

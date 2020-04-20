@@ -19,6 +19,8 @@ public class FileUtil {
 	private static final String SYNTAX = "java -jar file-inspector.jar ";
 	private static final String FINISH_MSG = "Finished.";
 
+	public enum REPORT_TYPE { summary, details }			
+
 
 	public static Collection<File> listFilesByExt(File dir, FIND_EXT fe) {
     	String ext = fe.toString();		
@@ -52,9 +54,9 @@ public class FileUtil {
 		    System.out.println("Output JSON file: " + OUT_JSON);
 		}
 	}
-	public static void outputHtmlReport(String json, String info) throws IOException {
-		String OUT_HTML_SINGLE = "out/file-inspector-report_"+info+".html";
-		String OUT_HTML_ONLY = "out/file-inspector-report_"+info+"_only.html";
+	public static void outputHtmlReport(REPORT_TYPE type, String json, String info) throws IOException {
+		String OUT_HTML_SINGLE = "out/file-inspector_"+ type +"_" + info + ".html";
+		//String OUT_HTML_ONLY = "out/file-inspector-report_"+info+"_only.html";
 	
 			
 	//	try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML_SINGLE))){
@@ -63,7 +65,7 @@ public class FileUtil {
 	//	}
 	//	
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML_SINGLE))){
-		    writer.write(convertJsToHtml( convertJsonToJs(json), true )); 
+		    writer.write(convertJsToSummaryHtml( convertSummaryJsonToJs(json), true )); 
 		    System.out.println("Output HTML file: " + OUT_HTML_SINGLE);
 		}		
 	}
@@ -80,7 +82,21 @@ public class FileUtil {
 	}
 	
 	
-	public static String convertJsonToJs(String json) {			// TODO: This doesn't work with JSON that has <CR> because comma isn't replaced with semi-colon
+	public static String convertSummaryJsonToJs(String json) {			// TODO: This doesn't work with JSON that has <CR> because comma isn't replaced with semi-colon
+		String bracketStr = json.replace("\"app\":", " const app = ")
+								.replace("\"summary\":", " const summary = ")
+							    .replace("\"details\":", " const details = ")
+							    .replace(", const", "; const");								// Replace commas with semi-colon between the objects.  Semicolon necessary if no line breaks
+		System.out.println("Converted JSON------------------");
+		System.out.println(json);
+		System.out.println("To JS ----------------------__--");
+		System.out.println(bracketStr);
+		
+		return bracketStr.substring(1, bracketStr.length() - 1);							// Need to remove the first and last brackets {}
+		
+	}
+	
+	public static String convertNetDocJsonToJs(String json) {			// TODO: This doesn't work with JSON that has <CR> because comma isn't replaced with semi-colon
 		String bracketStr = json.replace("\"connections\":", " const connections = ")
 								.replace("\"servlets\":", " const servlets = ")
 							    .replace("\"services\":", " const services = ")
@@ -96,16 +112,23 @@ public class FileUtil {
 //		final String after = "<body><h1><center>Net Doc Report</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Servlets</h1><ul>${servlets.map(servletTemplate).join(\"\")}</ul><h1>Web Services</h1><ul>${services.map(serviceTemplate).join(\"\")}</ul><h1>Net Connections</h1><ul>${connections.map(connectionTemplate).join(\"\")}</ul><h1>Web Sockets</h1><ul>${sockets.map(socketTemplate).join(\"\")}</ul>`;</script></body>";
 //		return before + "<script>" + js + "</script>" + after;
 //	}
-	public static String convertJsToHtml(String js, boolean isSingleFile) {
+	public static String convertJsToNetDocHtml(String js, boolean isSingleFile) {
 		String returnStr = "<!DOCTYPE html><html>";
-		final String head = getHTMLHead(js);
+		final String head = getNetDocHTMLHead(js);
 		final String body = "<body><h1><center>Net Doc Report</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Servlets</h1><ul>${servlets.map(servletTemplate).join(\"\")}</ul><h1>Web Services</h1><ul>${services.map(serviceTemplate).join(\"\")}</ul><h1>Net Connections</h1><ul>${connections.map(connectionTemplate).join(\"\")}</ul><h1>Web Sockets</h1><ul>${sockets.map(socketTemplate).join(\"\")}</ul>`;</script></body>";
 		returnStr += head + body + "</html>";
 		return returnStr;
 	}
-	private static String getHTMLHead(String js) {
+	public static String convertJsToSummaryHtml(String js, boolean isSingleFile) {
+		String returnStr = "<!DOCTYPE html><html>";
+		final String head = getSummaryHTMLHead(js);
+		final String body = "<body><h1><center>File Inspector</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Summary</h1><ul>${summary.map(summaryTemplate).join(\"\")}</ul>`;</script></body>";
+		returnStr += head + body + "</html>";
+		return returnStr;
+	}
+	private static String getNetDocHTMLHead(String js) {
 		String returnStr = "<head>";
-		returnStr += "<title>Net Doc</title> ";
+		returnStr += "<title>File Inspector</title> ";
 		returnStr += "<script type=\"text/javascript\" src=\"js/templates/servlet.js\"></script>";
 		returnStr += "<script type=\"text/javascript\" src=\"js/templates/service.js\"></script>";
 		returnStr += "<script type=\"text/javascript\" src=\"js/templates/connection.js\"></script> ";
@@ -114,6 +137,13 @@ public class FileUtil {
 		returnStr += "<script>" + js + "</script>";
 		return returnStr + "</head>";
 	}
-
+	private static String getSummaryHTMLHead(String js) {
+		String returnStr = "<head>";
+		returnStr += "<title>File Inspector</title> ";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/summary.js\"></script>";
+		returnStr += "<link rel=\"stylesheet\" href=\"fileinspector.css\">";
+		returnStr += "<script>" + js + "</script>";
+		return returnStr + "</head>";
+	}
 }
 

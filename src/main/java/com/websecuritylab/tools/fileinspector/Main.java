@@ -25,14 +25,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.profesorfalken.jpowershell.PowerShell;
 import com.profesorfalken.jpowershell.PowerShellResponse;
+import com.websecuritylab.tools.fileinspector.FileUtil.REPORT_TYPE;
 import com.websecuritylab.tools.fileinspector.model.PowerShellSearchResult;
 import com.websecuritylab.tools.fileinspector.model.Report;
 
 
 public class Main {
 	
-	private enum SOURCE_TYPE { A, C, S }		// [A]rchive file (WAR/EAR/JAR), [C]LASS files, [S]OURCE files.
-	private enum AUDIT_DIRECTORY { Y, N, T }		// [A]rchive file (WAR/EAR/JAR), [C]LASS files, [S]OURCE files.
+	private enum SOURCE_TYPE { A, C, S }			// [A]rchive file (WAR/EAR/JAR), [C]LASS files, [S]OURCE files.
+	private enum AUDIT_DIRECTORY { Y, N, T }		// [Y]es (directory), [N]o (single file), [T]emp (previously extracted temp diretory).
 	
 	public enum FIND_EXT { jar, java, war }
     private static final Logger logger = LoggerFactory.getLogger( Main.class );  
@@ -158,8 +159,9 @@ public class Main {
    				String prettyReport = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);
    				System.out.println(prettyReport);  	
    				
+   				String uglyReport = mapper.writeValueAsString(report);  				
    				FileUtil.outputJsonReport(prettyReport, props.getProperty(CliOptions.APP_NAME));
-   				//FileUtil.outputHtmlReport(outStr, props.getProperty(CliOptions.APP_NAME));
+   				FileUtil.outputHtmlReport(REPORT_TYPE.summary, uglyReport, props.getProperty(CliOptions.APP_NAME));
 
 
 //    			for (File file: files ) {

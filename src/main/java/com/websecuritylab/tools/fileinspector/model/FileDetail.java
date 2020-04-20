@@ -3,13 +3,13 @@ package com.websecuritylab.tools.fileinspector.model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FileMatches {
+public class FileDetail {
     public String filename;
     public String path;
 
     List<Match> matches = new ArrayList<>();
 
-	public FileMatches(String filename, String path) {
+	public FileDetail(String filename, String path) {
 		this.filename = filename;
 		this.path = path;
 	}
