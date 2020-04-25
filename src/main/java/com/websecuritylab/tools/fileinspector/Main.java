@@ -40,11 +40,14 @@ public class Main {
 	private static final String PROPS_FILE = "file-inspector.props";
 	private static final String SYNTAX = "java -jar file-inspector.jar ";
 	private static final String RUN_DECOMPILE = "java -jar lib/%s  %s --outputdir %s";				// Synax for CFR: java -jar lib/<CFR>.jar <FILES> --outputdir <OUTPUT_DIR>
-	private static final String TEMP_DIR = "FileInspector";
+	private static final String TEMP_DIR = "fileinspector";
 	
 	private static Properties props = new Properties();		
-	String cfrJar = props.getProperty(CliOptions.CFR_JAR);
-
+	private static String cfrJar = props.getProperty(CliOptions.CFR_JAR);
+	private static String outFolder = "out/";			
+	private static String outJsonPath=null;
+	private static String outHtmlSummaryPath=null;
+	private static String outHtmlDetailPath=null;
 
 	public static void main(String[] args) {
 		String mainCmd = SYNTAX + String.join(" ", Arrays.asList(args));
@@ -126,10 +129,8 @@ public class Main {
                 if ( isDirectory ) {
         			File f = new File(dirPath);
         			files = FileUtil.listFilesByExt(f, FIND_EXT.jar);               	
-                    System.out.println("Auditing " + files.size() + " files in folder: " + dirPath);
-                }
+                 }
                 else {
-                    System.out.println("Auditing single file("+props.getProperty(CliOptions.AUDIT_FILE)+"): " + filePath);
         			File f = new File(filePath);
                 	files = Arrays.asList(f);
                 }
@@ -140,7 +141,6 @@ public class Main {
             		if ( sourceType == SOURCE_TYPE.A ) {
             			File tempDir = Util.createTempDir(TEMP_DIR);
             			for (File file: files ) {
-               				System.out.println("Decompiling file: " + file.getAbsolutePath());		
               				searchPath = runDecompile(file, tempDir, isLinux, isKeepTemp, isVerbose);	
                				props.setProperty(CliOptions.TEMP_DIR_PATH, searchPath);
             			}       		
@@ -151,18 +151,17 @@ public class Main {
                 }
 
         		String searchText = props.getProperty(CliOptions.SEARCH_TEXT);
-   				System.out.println("Searching file(s) for text: " + searchText);		
    				Report report = searchRecursiveForString(searchPath, searchText, isLinux, isVerbose);
    				
-   				System.out.println("------------------Got Report----------------");
    				ObjectMapper mapper = new ObjectMapper();
-   				String prettyReport = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);
-   				System.out.println(prettyReport);  	
-   				
-   				String uglyReport = mapper.writeValueAsString(report);  				
-   				FileUtil.outputJsonReport(prettyReport, props.getProperty(CliOptions.APP_NAME));
-   				FileUtil.outputHtmlReport(REPORT_TYPE.summary, uglyReport, props.getProperty(CliOptions.APP_NAME));
-
+   				String uglyReport = mapper.writeValueAsString(report);  
+  				String prettyReport = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);				
+  				
+  				String app = props.getProperty(CliOptions.APP_NAME);
+  				outJsonPath = FileUtil.outputReport(REPORT_TYPE.json, outFolder, app, prettyReport);
+  				outHtmlSummaryPath = FileUtil.outputReport(REPORT_TYPE.summary, outFolder, app, uglyReport);
+  				outHtmlDetailPath = FileUtil.outputReport(REPORT_TYPE.detail, outFolder, app, uglyReport);
+ 
 
 //    			for (File file: files ) {
 //    				System.out.println("Got file: " + file.getName());		
@@ -189,7 +188,9 @@ public class Main {
 			System.out.println();
 			System.out.println(props.toString().replace(", ", "\n").replace("{", "").replace("}", ""));  
 			System.out.println("------------------------------------------------");
-			
+			System.out.println("See Output Files: ");
+			System.out.println(outJsonPath);
+			System.out.println(outHtmlSummaryPath);
 			
 
 			
@@ -205,7 +206,8 @@ public class Main {
 	}
 	
 	private static String runDecompile(File file, File tempDir, boolean isLinux, boolean keepTemp, boolean isVerbose) throws IOException {
-		String tempPath = tempDir.getAbsolutePath().replace("\\", "/"); // replace windows backslash because either works with the cmd
+		//String tempPath = tempDir.getAbsolutePath().replace("\\", "/"); // replace windows backslash because either works with the cmd
+		String tempPath = tempDir.getCanonicalPath().replace("\\", "/"); // replace windows backslash because either works with the cmd
 
 		String cfrJar = props.getProperty(CliOptions.CFR_JAR);
 
@@ -230,7 +232,8 @@ public class Main {
 	
 		String searchStr = "'rijndael|blowfish'";
 	
-		String cmd = "Get-ChildItem 'C:/Users/scott/AppData/Local/Temp/fileinspector/decompiled/*.java' -Recurse | Select-String -Pattern "+searchStr+" | ConvertTo-Json";
+		//System.out.println("!!!!!!!!!!!!!!!!Got RootPath: " + rootPath);
+		String cmd = "Get-ChildItem '"+rootPath+"' -Recurse | Select-String -Pattern "+searchStr+" -Context 0,3 | ConvertTo-Json";
 		
 	//	[ {
 	//	  "IgnoreCase" : true,
@@ -239,7 +242,12 @@ public class Main {
 	//	  "Filename" : "BlockCipherSpec.java",
 	//	  "Path" : "C:\\Users\\scott\\AppData\\Local\\Temp\\fileinspector\\decompiled\\org\\cryptacular\\spec\\BlockCipherSpec.java",
 	//	  "Pattern" : "rijndael|blowfish",
-	//	  "Context" : null,
+//        "Context":  {
+//            "PreContext":  "        public KeyGen() {",
+//            "PostContext":  "        }",
+//            "DisplayPreContext":  "        public KeyGen() {",
+//            "DisplayPostContext":  "        }"
+//        },
 	//	  "Matches" : [ "Blowfish" ]
 	//	} ]
 				

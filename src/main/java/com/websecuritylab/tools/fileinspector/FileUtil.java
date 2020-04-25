@@ -10,6 +10,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.websecuritylab.tools.fileinspector.FileUtil.REPORT_TYPE;
 import com.websecuritylab.tools.fileinspector.Main.FIND_EXT;
 
 
@@ -18,8 +19,9 @@ public class FileUtil {
     
 	private static final String SYNTAX = "java -jar file-inspector.jar ";
 	private static final String FINISH_MSG = "Finished.";
+	private static final String BASE_FILENAME = "file-inspector-";
 
-	public enum REPORT_TYPE { summary, details }			
+	public enum REPORT_TYPE { summary, detail, json }			
 
 
 	public static Collection<File> listFilesByExt(File dir, FIND_EXT fe) {
@@ -45,29 +47,30 @@ public class FileUtil {
 		return someFile.exists();
 	}
 	
-	public static void outputJsonReport(String json, String info) throws IOException {
-		String OUT_JSON = "out/file-inspector-report_"+info+".json";
-		
-		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_JSON))){
-		    //writer.write(JsonOutput.prettyPrint(json)); 
-		    writer.write(json); 
-		    System.out.println("Output JSON file: " + OUT_JSON);
-		}
-	}
-	public static void outputHtmlReport(REPORT_TYPE type, String json, String info) throws IOException {
-		String OUT_HTML_SINGLE = "out/file-inspector_"+ type +"_" + info + ".html";
-		//String OUT_HTML_ONLY = "out/file-inspector-report_"+info+"_only.html";
-	
-			
-	//	try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML_SINGLE))){
-	//	    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json), false )); 
-	//	    System.out.println("Output HTML file: " + OUT_HTML_ONLY);
-	//	}
-	//	
-		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML_SINGLE))){
-		    writer.write(convertJsToSummaryHtml( convertSummaryJsonToJs(json), true )); 
-		    System.out.println("Output HTML file: " + OUT_HTML_SINGLE);
-		}		
+//	public static void outputJsonReport(String json, String filepath) throws IOException {
+//		
+//		try(BufferedWriter writer = new BufferedWriter(new FileWriter(filepath))){
+//		    //writer.write(JsonOutput.prettyPrint(json)); 
+//		    writer.write(json); 
+//		    //System.out.println("Output JSON file: " + OUT_JSON);
+//		}
+//	}
+	public static String outputReport(REPORT_TYPE type, String outFolder, String appName, String json) throws IOException {
+		String outPath = outFolder + BASE_FILENAME + type +"_" + appName + (type==REPORT_TYPE.json? ".json" : ".html");
+
+		try(BufferedWriter writer = new BufferedWriter(new FileWriter(outPath))){
+			switch(type)
+			{
+				case json:
+					writer.write(json); 
+					break;
+				case summary:
+				case detail:
+					writer.write(convertJsToHtml( type, convertSummaryJsonToJs(json), true )); 
+					break;
+			}
+		}	
+		return outPath;
 	}
 	public static void abort(String message) {
 		System.err.println(message);
@@ -85,12 +88,12 @@ public class FileUtil {
 	public static String convertSummaryJsonToJs(String json) {			// TODO: This doesn't work with JSON that has <CR> because comma isn't replaced with semi-colon
 		String bracketStr = json.replace("\"app\":", " const app = ")
 								.replace("\"summary\":", " const summary = ")
-							    .replace("\"details\":", " const details = ")
+							    .replace("\"detail\":", " const detail = ")
 							    .replace(", const", "; const");								// Replace commas with semi-colon between the objects.  Semicolon necessary if no line breaks
-		System.out.println("Converted JSON------------------");
-		System.out.println(json);
-		System.out.println("To JS ----------------------__--");
-		System.out.println(bracketStr);
+//		System.out.println("Converted JSON------------------");
+//		System.out.println(json);
+//		System.out.println("To JS ----------------------__--");
+//		System.out.println(bracketStr);
 		
 		return bracketStr.substring(1, bracketStr.length() - 1);							// Need to remove the first and last brackets {}
 		
@@ -119,10 +122,29 @@ public class FileUtil {
 		returnStr += head + body + "</html>";
 		return returnStr;
 	}
-	public static String convertJsToSummaryHtml(String js, boolean isSingleFile) {
+//	public static String convertJsToSummaryHtml(String js, boolean isSingleFile) {
+//		String returnStr = "<!DOCTYPE html><html>";
+//		final String head = getSummaryHTMLHead(js);
+//		final String body = "<body><h1><center>File Inspector</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Summary</h1><ul>${summary.map(summaryTemplate).join(\"\")}</ul><h1>Details</h1><ul>${detail.map(detailTemplate).join(\\\"\\\")}</ul>`;</script></body>";
+//		returnStr += head + body + "</html>";
+//		return returnStr;
+//	}
+//	public static String convertJsToDetailHtml(String js, boolean isSingleFile) {
+//		String returnStr = "<!DOCTYPE html><html>";
+//		final String head = getSummaryHTMLHead(js);
+//		final String body = "<body><h1><center>File Inspector</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Summary</h1><ul>${summary.map(summaryTemplate).join(\"\")}</ul><h1>Details</h1><ul>${detail.map(detailTemplate).join(\\\"\\\")}</ul>`;</script></body>";
+//		returnStr += head + body + "</html>";
+//		return returnStr;
+//	}
+	public static String convertJsToHtml(REPORT_TYPE type, String js, boolean isSingleFile) {
 		String returnStr = "<!DOCTYPE html><html>";
-		final String head = getSummaryHTMLHead(js);
-		final String body = "<body><h1><center>File Inspector</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Summary</h1><ul>${summary.map(summaryTemplate).join(\"\")}</ul>`;</script></body>";
+		final String head = getHTMLHead(type, js);
+		String body = "<body><h1><center>File Inspector</center></h1><div id=\"app\"></div> ";
+			   body += "<script>document.getElementById(\"app\").innerHTML=`";
+			   if ( type==REPORT_TYPE.summary ) body += "<h1>Summary</h1><ul>${summary.map(summaryTemplate).join(\"\")}</ul>";
+			   if ( type==REPORT_TYPE.detail ) body += "<h1>Details</h1><ul>${detail.map(detailTemplate).join(\"\")}</ul>";
+			   body += "`;</script>";
+			   body += "</body>";
 		returnStr += head + body + "</html>";
 		return returnStr;
 	}
@@ -137,10 +159,11 @@ public class FileUtil {
 		returnStr += "<script>" + js + "</script>";
 		return returnStr + "</head>";
 	}
-	private static String getSummaryHTMLHead(String js) {
+	private static String getHTMLHead(REPORT_TYPE type, String js) {
 		String returnStr = "<head>";
-		returnStr += "<title>File Inspector</title> ";
-		returnStr += "<script type=\"text/javascript\" src=\"js/templates/summary.js\"></script>";
+		returnStr += "<title>File Inspector "+(type==REPORT_TYPE.summary? "Summary" : "Details") + "</title> ";
+		if ( type==REPORT_TYPE.summary ) returnStr += "<script type=\"text/javascript\" src=\"js/templates/summary.js\"></script>";
+		if ( type==REPORT_TYPE.detail ) returnStr += "<script type=\"text/javascript\" src=\"js/templates/detail.js\"></script>";
 		returnStr += "<link rel=\"stylesheet\" href=\"fileinspector.css\">";
 		returnStr += "<script>" + js + "</script>";
 		return returnStr + "</head>";

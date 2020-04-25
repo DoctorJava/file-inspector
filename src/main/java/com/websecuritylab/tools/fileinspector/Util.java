@@ -40,8 +40,9 @@ public class Util {
 
     
     public static void unjar(String jarFilePath, File tempDir) throws IOException {
-    	String destDirectory = tempDir.getAbsolutePath();
-        File destDir = new File(destDirectory);
+    	//String destDirectory = tempDir.getAbsolutePath();
+    	String destDirectory = tempDir.getCanonicalPath();
+            File destDir = new File(destDirectory);
         if (!destDir.exists()) {
             destDir.mkdir();
         }
@@ -70,9 +71,11 @@ public class Util {
             continue;
           }
           
-          FileInputStream in = new FileInputStream(files[i].getAbsolutePath());
-         
-          String filePath = files[i].getPath();
+          //FileInputStream in = new FileInputStream(files[i].getAbsolutePath());
+          FileInputStream in = new FileInputStream(files[i].getCanonicalPath());
+               
+          // String filePath = files[i].getPath();				// Has short DOS filenames where users/scott.forbes  becomes users/SCOTT~1.FOR which does not work in PowerShell
+          String filePath = files[i].getCanonicalPath();
           if ( filePath.contains(":")) filePath = filePath.substring( filePath.indexOf(":") + 1);  // Strip drive from Windows Path (D:/) because it is illegal for zip file
           if ( filePath.startsWith("/") || filePath.startsWith("\\") ) filePath = filePath.substring(1);  // Strip drive from Windows Path (D:/) because it is illegal for zip file
 
@@ -90,7 +93,8 @@ public class Util {
     
     //public void unzip(String zipFilePath, String destDirectory) throws IOException {
     public static void unzip(String zipFilePath, File tempDir) throws IOException {
-    	String destDirectory = tempDir.getAbsolutePath();
+    	//String destDirectory = tempDir.getAbsolutePath();
+    	String destDirectory = tempDir.getCanonicalPath();
         File destDir = new File(destDirectory);
         if (!destDir.exists()) {
             destDir.mkdir();
@@ -145,8 +149,12 @@ public class Util {
 		} else {
 			boolean createdTempFolder = tempDir.mkdirs();
 			if (!createdTempFolder) throw new IOException();
-			logger.info("Created Temp Directory: "+tempDir.getAbsolutePath());			
+			//logger.info("Created Temp Directory: "+tempDir.getAbsolutePath());			
+			logger.info("Created Temp Directory: "+tempDir.getCanonicalPath());			
 		}
+		//System.out.println("GOt TEMP Path: " + tempDir.getPath());						// Has DOS short filenames that do not work with PowerShell
+		//System.out.println("GOt TEMP CanonicalPath: " + tempDir.getCanonicalPath());    // Has long filenames that work with PowerShell
+		//System.out.println("GOt TEMP AbsolutePath: " + tempDir.getAbsolutePath());		// Has DOS short filenames that do not work with PowerShell
 		return tempDir;
 	}
 
@@ -215,7 +223,7 @@ public class Util {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(tmp)));
 			String line = "";
 			while ((line = reader.readLine()) != null) {
-				if (isVerbose) System.out.println(line);
+				//if (isVerbose) System.out.println(line);
 				output.append(line);
 			}
 			reader.close();

@@ -10,7 +10,7 @@ public class PowerShellSearchResult {
     public String Filename;
     public String Path;
     public String Pattern;
-    public String Context;
+    public Context Context;
     public List<String> Matches;
     
     

@@ -7,7 +7,7 @@ public class FileDetail {
     public String filename;
     public String path;
 
-    List<Match> matches = new ArrayList<>();
+    public List<Match> matches = new ArrayList<>();
 
 	public FileDetail(String filename, String path) {
 		this.filename = filename;
@@ -15,7 +15,8 @@ public class FileDetail {
 	}
 	
 	public void addMatch(PowerShellSearchResult r) {
-		matches.add( new Match(r.LineNumber, r.Line, r.Matches.get(0)));
+		System.out.println("Got Result: " + r.Context);
+		matches.add( new Match(r.LineNumber, r.Line, r.Matches.get(0), r.Context));
 	}
 
 }
