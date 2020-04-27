@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -55,7 +56,7 @@ public class FileUtil {
 //		    //System.out.println("Output JSON file: " + OUT_JSON);
 //		}
 //	}
-	public static String outputReport(REPORT_TYPE type, String outFolder, String appName, String json) throws IOException {
+	public static String outputReport(REPORT_TYPE type, Properties props, String outFolder, String appName, String json) throws IOException {
 		String outPath = outFolder + BASE_FILENAME + type +"_" + appName + (type==REPORT_TYPE.json? ".json" : ".html");
 
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(outPath))){
@@ -66,7 +67,7 @@ public class FileUtil {
 					break;
 				case summary:
 				case detail:
-					writer.write(convertJsToHtml( type, convertSummaryJsonToJs(json), true )); 
+					writer.write(convertJsToHtml( type, props, convertSummaryJsonToJs(json), true )); 
 					break;
 			}
 		}	
@@ -136,13 +137,18 @@ public class FileUtil {
 //		returnStr += head + body + "</html>";
 //		return returnStr;
 //	}
-	public static String convertJsToHtml(REPORT_TYPE type, String js, boolean isSingleFile) {
+	public static String convertJsToHtml(REPORT_TYPE type, Properties props, String js, boolean isSingleFile) {
 		String returnStr = "<!DOCTYPE html><html>";
+		final String title = "File Inspector " + (type==REPORT_TYPE.summary? "Summary" : "Detail");
+		final String propStr = props.toString().replace(", ", "<li>").replace("{", "<li>").replace("}", "");
 		final String head = getHTMLHead(type, js);
-		String body = "<body><h1><center>File Inspector</center></h1><div id=\"app\"></div> ";
+		String body = "<body>";
+			   body += "<h1><center>"+title+"</center></h1>";
+			   body += "<h2>Scan Properties</h2><ul>"+propStr+"</ul><hr/>";
+			   body += "<div id=\"app\"></div> ";
 			   body += "<script>document.getElementById(\"app\").innerHTML=`";
-			   if ( type==REPORT_TYPE.summary ) body += "<h1>Summary</h1><ul>${summary.map(summaryTemplate).join(\"\")}</ul>";
-			   if ( type==REPORT_TYPE.detail ) body += "<h1>Details</h1><ul>${detail.map(detailTemplate).join(\"\")}</ul>";
+			   if ( type==REPORT_TYPE.summary ) body += "${tableStart}${summary.map(summaryTemplate).join(\"\")}${tableEnd}";
+			   if ( type==REPORT_TYPE.detail ) body += "<ul>${detail.map(detailTemplate).join(\"\")}</ul>";
 			   body += "`;</script>";
 			   body += "</body>";
 		returnStr += head + body + "</html>";

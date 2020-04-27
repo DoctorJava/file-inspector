@@ -15,7 +15,7 @@ public class FileDetail {
 	}
 	
 	public void addMatch(PowerShellSearchResult r) {
-		System.out.println("Got Result: " + r.Context);
+		//System.out.println("Got Result: " + r.Context);
 		matches.add( new Match(r.LineNumber, r.Line, r.Matches.get(0), r.Context));
 	}
 

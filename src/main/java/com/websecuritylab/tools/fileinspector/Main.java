@@ -158,9 +158,9 @@ public class Main {
   				String prettyReport = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);				
   				
   				String app = props.getProperty(CliOptions.APP_NAME);
-  				outJsonPath = FileUtil.outputReport(REPORT_TYPE.json, outFolder, app, prettyReport);
-  				outHtmlSummaryPath = FileUtil.outputReport(REPORT_TYPE.summary, outFolder, app, uglyReport);
-  				outHtmlDetailPath = FileUtil.outputReport(REPORT_TYPE.detail, outFolder, app, uglyReport);
+  				outJsonPath = FileUtil.outputReport(REPORT_TYPE.json, props, outFolder, app, prettyReport);
+  				outHtmlSummaryPath = FileUtil.outputReport(REPORT_TYPE.summary,  props, outFolder, app, uglyReport);
+  				outHtmlDetailPath = FileUtil.outputReport(REPORT_TYPE.detail,  props, outFolder, app, uglyReport);
  
 
 //    			for (File file: files ) {
@@ -228,12 +228,12 @@ public class Main {
 
 	}
 
-	private static Report searchRecursiveForString( String rootPath, String searchText, boolean isLinux, boolean isVerbose) throws IOException {
+	private static Report searchRecursiveForString( String rootPath, String searchStr, boolean isLinux, boolean isVerbose) throws IOException {
 	
-		String searchStr = "'rijndael|blowfish'";
+		//String searchStr = "'rijndael|blowfish'";
 	
 		//System.out.println("!!!!!!!!!!!!!!!!Got RootPath: " + rootPath);
-		String cmd = "Get-ChildItem '"+rootPath+"' -Recurse | Select-String -Pattern "+searchStr+" -Context 0,3 | ConvertTo-Json";
+		String cmd = "Get-ChildItem '"+rootPath+"' -Recurse | Select-String -Pattern '"+searchStr+"' -Context 0,3 | ConvertTo-Json";
 		
 	//	[ {
 	//	  "IgnoreCase" : true,
