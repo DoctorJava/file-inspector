@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -22,11 +23,14 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.profesorfalken.jpowershell.PowerShell;
 import com.profesorfalken.jpowershell.PowerShellResponse;
 import com.websecuritylab.tools.fileinspector.FileUtil.REPORT_TYPE;
 import com.websecuritylab.tools.fileinspector.model.PowerShellSearchResult;
+import com.websecuritylab.tools.fileinspector.model.PowerShellSearchResult_ObjectMatches;
 import com.websecuritylab.tools.fileinspector.model.Report;
 
 
@@ -71,6 +75,7 @@ public class Main {
 		boolean isVerbose = false;
 		boolean isKeepTemp = false;
 		boolean isLinux = false;
+		boolean hasRegExFile = false;
 		try (BufferedReader buf = new BufferedReader(new InputStreamReader(System.in))) {
 			if (cl.hasOption(CliOptions.HELP)) {
 				CliOptions.printHelp(SYNTAX);
@@ -80,6 +85,7 @@ public class Main {
 			if (cl.hasOption(CliOptions.VERBOSE)) isVerbose = true;
 			if (cl.hasOption(CliOptions.KEEP_TEMP)) isKeepTemp = true;
 			if (cl.hasOption(CliOptions.IS_LINUX)) isLinux = true;
+			if (cl.hasOption(CliOptions.HAS_REGEX_FILE)) hasRegExFile = true;
 			if (cl.getOptionValue(CliOptions.CFR_JAR) != null )  props.setProperty(CliOptions.CFR_JAR, cl.getOptionValue(CliOptions.CFR_JAR));
 
             if (cl.hasOption(CliOptions.INTERACTIVE)) {
@@ -117,7 +123,9 @@ public class Main {
     			}
 
 
-                handlePropInput(buf,CliOptions.SEARCH_TEXT, false);
+                if ( hasRegExFile ) handlePropInput(buf,CliOptions.REGEX_FILE, false);
+                else handlePropInput(buf,CliOptions.REGEX_STRING, false);
+                
                 handlePropInput(buf,CliOptions.APP_NAME, false);
                 
                // handlePropInput(buf,CliOptions.IS_LINUX, false);
@@ -150,8 +158,20 @@ public class Main {
                 	searchPath = props.getProperty(CliOptions.TEMP_DIR_PATH);
                 }
 
-        		String searchText = props.getProperty(CliOptions.SEARCH_TEXT);
-   				Report report = searchRecursiveForString(searchPath, searchText, isLinux, isVerbose);
+                String searchRegEx="";
+                if ( hasRegExFile ) {
+                	List<String> lines = Util.readNonCommentLines(props.getProperty(CliOptions.REGEX_FILE),"//");
+                	int i = 0;
+                	for (String line : lines) {
+                		searchRegEx += line;
+                	    if (i++ != lines.size() - 1) { searchRegEx += "|"; };				// Add '|' if NOT last line
+                	}
+                	//searchRegEx = Util.readFile(props.getProperty(CliOptions.REGEX_FILE));
+                	
+                } else {
+            		searchRegEx = props.getProperty(CliOptions.REGEX_STRING);     
+                }
+   				Report report = searchRecursiveForString(searchPath, searchRegEx, isLinux, isVerbose);
    				
    				ObjectMapper mapper = new ObjectMapper();
    				String uglyReport = mapper.writeValueAsString(report);  
@@ -233,7 +253,8 @@ public class Main {
 		//String searchStr = "'rijndael|blowfish'";
 	
 		//System.out.println("!!!!!!!!!!!!!!!!Got RootPath: " + rootPath);
-		String cmd = "Get-ChildItem '"+rootPath+"' -Recurse | Select-String -Pattern '"+searchStr+"' -Context 0,3 | ConvertTo-Json";
+		//String cmd = "Get-ChildItem '"+rootPath+"' -Recurse | Select-String -Pattern '"+searchStr+"' -Context 0,3 | ConvertTo-Json";
+		String cmd = "Get-ChildItem '"+rootPath+"' -Recurse | Select-String -Pattern '"+searchStr+"' | ConvertTo-Json";
 		
 	//	[ {
 	//	  "IgnoreCase" : true,
@@ -259,17 +280,33 @@ public class Main {
 		Report report = new Report("MyApp");
 		
 		String jsonStr = response.getCommandOutput();
+		//System.out.println("Got jsonStr single object: " + jsonStr.startsWith("{"));
+		//if (jsonStr.startsWith("{")) jsonStr = "[" + jsonStr + "]";		// Convert to a List of one object because ObjectMapper is looking for a list
+		System.out.println("Got jsonStr: " + jsonStr);
 		
 		ObjectMapper mapper = new ObjectMapper();
-		List<PowerShellSearchResult> psResults;
+		mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);	// Powershell Select-String returns single object, or a list of objects
+
 		try {
-			psResults = mapper.readValue(jsonStr, new TypeReference<List<PowerShellSearchResult>>(){});
+			List<PowerShellSearchResult> psResults = mapper.readValue(jsonStr, new TypeReference<List<PowerShellSearchResult>>(){});
 			
 			for(PowerShellSearchResult r : psResults) {
 				report.addFileMatch(r);
 			}
 						
-		} catch (JsonProcessingException e) {
+		} catch (MismatchedInputException e) {
+			List<PowerShellSearchResult_ObjectMatches> psResultsObjectMapper = mapper.readValue(jsonStr, new TypeReference<List<PowerShellSearchResult_ObjectMatches>>(){});
+			
+			List<PowerShellSearchResult> psResults = new ArrayList<>();
+			for(PowerShellSearchResult_ObjectMatches rom : psResultsObjectMapper) {
+				psResults.add(new PowerShellSearchResult(rom));	
+			}
+		
+			for(PowerShellSearchResult r : psResults) {
+				report.addFileMatch(r);
+			}
+		}
+		catch (JsonProcessingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

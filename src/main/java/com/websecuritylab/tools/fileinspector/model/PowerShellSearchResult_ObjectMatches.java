@@ -1,9 +1,8 @@
 package com.websecuritylab.tools.fileinspector.model;
 
-import java.util.Arrays;
 import java.util.List;
 
-public class PowerShellSearchResult {
+public class PowerShellSearchResult_ObjectMatches {
 	
     public Boolean IgnoreCase;
     public Integer LineNumber;
@@ -12,25 +11,10 @@ public class PowerShellSearchResult {
     public String Path;
     public String Pattern;
     public Context Context;
-    public List<String> Matches;
+    public List<PowerShellSearch_ObjectMatch> Matches;
     
     
-    public PowerShellSearchResult() {}
-
-
-	public PowerShellSearchResult(PowerShellSearchResult_ObjectMatches pr_om) {
-		IgnoreCase = pr_om.IgnoreCase;
-		LineNumber = pr_om.LineNumber;
-		Line = pr_om.Line;
-		Filename = pr_om.Filename;
-		Path = pr_om.Path;
-		Pattern = pr_om.Pattern;
-		Context = pr_om.Context;
-		//System.out.println("Got Match: " + pr_om.Matches.get(0).Value);
-		Matches = Arrays.asList(pr_om.Matches.get(0).Value);
-	};
-    
-    
+    public PowerShellSearchResult_ObjectMatches() {};
     
 //	[ {
 //	  "IgnoreCase" : true,
@@ -40,6 +24,15 @@ public class PowerShellSearchResult {
 //	  "Path" : "C:\\Users\\scott\\AppData\\Local\\Temp\\fileauditor\\decompiled\\org\\cryptacular\\spec\\BlockCipherSpec.java",
 //	  "Pattern" : "rijndael|blowfish",
 //	  "Context" : null,
-//	  "Matches" : [ "Blowfish" ]
+//  "Matches": [
+//  {
+//      "Groups": "AnotherString",
+//      "Success": true,
+//      "Name": "0",
+//      "Captures": "AnotherString",
+//      "Index": 27,
+//      "Length": 13,
+//      "Value": "AnotherString"
+//  }
 //	} ]
 }

@@ -21,7 +21,9 @@ public class CliOptions {
     public static final String AUDIT_FILE = "audit-file";
 	public static final String TEMP_DIR_PATH = "temp-dir-path";
  
-    public static final String SEARCH_TEXT = "search-text";
+    public static final String HAS_REGEX_FILE = "has-regex-file";
+    public static final String REGEX_FILE = "regex-file";
+    public static final String REGEX_STRING = "regex-string";
     
     
 	//public static final String SOURCE_DIR = "source-directory";
@@ -108,13 +110,25 @@ public class CliOptions {
         
         
         
-        final Option searchTextOption = Option.builder("s")
+        final Option hasRegexFileOption = Option.builder("r")
+                .required(false)
+                .hasArg(false)
+                .longOpt(HAS_REGEX_FILE)
+                .desc("Required: Load file with Regex search expression.  ")
+                .build();         
+        final Option regexFileOption = Option.builder("x")
                 .required(false)
                 .hasArg()
-                .longOpt(AUDIT_FILE)
-                .desc("Required: String(s) to search for in files (separated by | )")
+                .longOpt(REGEX_FILE)
+                .desc("Required: Path to the file to with RegEx search patterns.")
                 .build();         
-
+        final Option regexStringOption = Option.builder("s")
+                .required(false)
+                .hasArg()
+                .longOpt(REGEX_STRING)
+                .desc("Required: Regex search expression.  For simple strings use | separator)")
+                .build();         
+        
         final Option keeptempOption = Option.builder("k")
                 .required(false)
                 .hasArg(false)
@@ -146,8 +160,10 @@ public class CliOptions {
         options.addOption(auditFileOption);
         options.addOption(tempDirPathOption);
                 
-        options.addOption(searchTextOption);
-        
+        options.addOption(regexFileOption);
+        options.addOption(hasRegexFileOption);      
+        options.addOption(regexStringOption);
+                
         options.addOption(keeptempOption);
         options.addOption(isLinuxOption);
         options.addOption(verboseOption);

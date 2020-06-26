@@ -5,14 +5,20 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -241,4 +247,26 @@ public class Util {
 
     }
 	
+	public static String readFile(String filePath) throws Exception 
+	{ 
+	    return new String(Files.readAllBytes(Paths.get(filePath))); 
+	} 
+	
+	public static List<String> readNonCommentLines(String filePath, String c) throws IOException
+	{
+		List<String> lines = new ArrayList<>();
+		try ( FileReader fr = new FileReader(filePath);
+			  BufferedReader br = new BufferedReader(fr);){
+			String line; 
+			while ((line = br.readLine()) != null) {
+				if ( line.length() == 0 ) continue;														// Ignore empty lines
+				if ( !line.startsWith(c) ) {
+					if ( line.contains(c) ) lines.add(line.substring(0,line.indexOf(c)).trim());
+					else lines.add(line);
+				}
+			}
+		}  
+		return lines;			
+	}
+
 }
