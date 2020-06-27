@@ -160,7 +160,7 @@ public class Main {
 
                 String searchRegEx="";
                 if ( hasRegExFile ) {
-                	List<String> lines = Util.readNonCommentLines(props.getProperty(CliOptions.REGEX_FILE),"//");
+                	List<String> lines = Util.readNonCommentLines(props.getProperty(CliOptions.REGEX_FILE),"///");
                 	int i = 0;
                 	for (String line : lines) {
                 		searchRegEx += line;
