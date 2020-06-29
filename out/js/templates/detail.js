@@ -23,10 +23,13 @@
 // }
 
 
+var count = 0;
+
 function showDetailLinesWithContext(matches){
 	if ( !matches ) return ``;
 	return `
 		<p><strong>Match: </strong>
+		
 			${matches.map(match => `
 			<ul>
 				<li>(${match.match}) Line: ${match.lineNumber} <ul>
@@ -40,21 +43,19 @@ function showDetailLinesWithContext(matches){
 	`;
 }
 
-var count = 0;
-
 function showDetailLines(matches){
 	if ( !matches ) return ``;
 	return `
-		<p><h3>Matches: </h3>
+		<table width="95%" border=1>
+			<tr><th>Line #</th><th>Line</th></tr>
 			${matches.map(match => `
-			<ul>
-				<li>(${match.match}) Line: ${match.lineNumber} &rarr; ${match.line}
-			</ul>
+			<tr>
+				<td align=center>${match.lineNumber}</td><td>${match.line}</td>
+			</tr>
 			`).join("")}		
-		</p>
+		</table>
 	`;
 }
-
 function detailTemplate(detail) {
 	if ( detail ) {
 		return `
