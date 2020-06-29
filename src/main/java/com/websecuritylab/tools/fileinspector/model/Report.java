@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 public class Report {
+
+	
 	public String app;
 						// Use Maps to ensure unique paths
 	private Map<String, FileSummary> fileSummaryMap = new HashMap<>();
@@ -28,8 +30,12 @@ public class Report {
 //		}
 //		fileDetails.put(fm.filename, fm.matches);
 		
-		String fKey = r.Path;
+		String fKey = r.Path;		
 		String mKey = r.Matches.get(0);
+		//String mKey = r.Matches.get(0);
+		//if ( mKey.length() > 12 ) mKey = mKey.substring(0,SHOW) + SEP + mKey.length() + SEP + mKey.substring(mKey.length()-SHOW);
+		//System.out.println("Adding Truncated match: " + mKey);
+
 		if ( fKey.equals(mKey)) {
 			// System.out.println("Ignoring filename match: " + mKey );
 			return;
