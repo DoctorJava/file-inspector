@@ -39,7 +39,7 @@ public class Main {
 	private enum SOURCE_TYPE { A, C, S }			// [A]rchive file (WAR/EAR/JAR), [C]LASS files, [S]OURCE files.
 	private enum AUDIT_DIRECTORY { Y, N, T }		// [Y]es (directory), [N]o (single file), [T]emp (previously extracted temp diretory).
 	
-	public enum FIND_EXT { jar, java, war }
+	public enum FIND_EXT { jar, war, ear, java, clazz }
     private static final Logger logger = LoggerFactory.getLogger( Main.class );  
 	private static final String PROPS_FILE = "file-inspector.props";
 	private static final String SYNTAX = "java -jar file-inspector.jar ";
@@ -47,7 +47,7 @@ public class Main {
 	private static final String TEMP_DIR = "fileinspector";
 	
 	private static Properties props = new Properties();		
-	private static String cfrJar = props.getProperty(CliOptions.CFR_JAR);
+	//private static String cfrJar = props.getProperty(CliOptions.CFR_JAR);
 	private static String outFolder = "out/";			
 	private static String outJsonPath=null;
 	private static String outHtmlSummaryPath=null;
@@ -136,7 +136,21 @@ public class Main {
                 Collection<File> files = null;
                 if ( isDirectory ) {
         			File f = new File(dirPath);
-        			files = FileUtil.listFilesByExt(f, FIND_EXT.jar);               	
+        			switch(sourceType) {
+	    				case A: 
+	    					files = FileUtil.listFilesByExt(f, FIND_EXT.jar); 
+	    					files.addAll(FileUtil.listFilesByExt(f, FIND_EXT.war)); 
+	    					files.addAll(FileUtil.listFilesByExt(f, FIND_EXT.ear)); 
+	    					break;
+	    				case S: 
+	    					files = FileUtil.listFilesByExt(f, FIND_EXT.java); 
+	    					break;
+	    				case C: 
+	    					files = FileUtil.listFilesByExt(f, FIND_EXT.clazz); 
+	    					break;
+        			}
+        			   
+        			System.out.println("Got Files in Directory: " + files);
                  }
                 else {
         			File f = new File(filePath);
@@ -146,7 +160,7 @@ public class Main {
                 String searchPath = dirPath;
                 
                 if ( auditDirectory != AUDIT_DIRECTORY.T ) {
-            		if ( sourceType == SOURCE_TYPE.A ) {
+            		if ( sourceType == SOURCE_TYPE.A || sourceType == SOURCE_TYPE.C  ) {
             			File tempDir = Util.createTempDir(TEMP_DIR);
             			for (File file: files ) {
               				searchPath = runDecompile(file, tempDir, isLinux, isKeepTemp, isVerbose);	
@@ -211,6 +225,7 @@ public class Main {
 			System.out.println("See Output Files: ");
 			System.out.println(outJsonPath);
 			System.out.println(outHtmlSummaryPath);
+			System.out.println(outHtmlDetailPath);
 			
 
 			
