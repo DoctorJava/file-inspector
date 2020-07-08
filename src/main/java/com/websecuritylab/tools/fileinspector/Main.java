@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -185,17 +186,34 @@ public class Main {
                 } else {
             		searchRegEx = props.getProperty(CliOptions.REGEX_STRING);     
                 }
+                
+                
+                
+                
    				Report report = searchRecursiveForString(searchPath, searchRegEx, isLinux, isVerbose);
    				
-   				ObjectMapper mapper = new ObjectMapper();
-   				String uglyReport = mapper.writeValueAsString(report);  
-  				String prettyReport = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);				
-  				
-  				String app = props.getProperty(CliOptions.APP_NAME);
-  				outJsonPath = FileUtil.outputReport(REPORT_TYPE.json, props, outFolder, app, prettyReport);
-  				outHtmlSummaryPath = FileUtil.outputReport(REPORT_TYPE.summary,  props, outFolder, app, uglyReport);
-  				outHtmlDetailPath = FileUtil.outputReport(REPORT_TYPE.detail,  props, outFolder, app, uglyReport);
- 
+                savePropsFile(propFile);
+                 				
+   				if ( report != null ) {
+   	 				ObjectMapper mapper = new ObjectMapper();
+   	   				//String uglyReport = mapper.writeValueAsString(report);
+   	   				String uglyReport = mapper.writeValueAsString(report).replace("script",  "zcript");  		// </script> tags in LINE match breaks the HTML rendering
+   	  				String prettyReport = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);				
+   	  				
+   	  				String app = props.getProperty(CliOptions.APP_NAME);
+   	  				outJsonPath = FileUtil.outputReport(REPORT_TYPE.json, props, outFolder, app, prettyReport);
+   	  				outHtmlSummaryPath = FileUtil.outputReport(REPORT_TYPE.summary,  props, outFolder, app, uglyReport);
+   	  				outHtmlDetailPath = FileUtil.outputReport(REPORT_TYPE.detail,  props, outFolder, app, uglyReport);
+	   	 			
+	   	 			System.out.println("***************  Output Files  ***********************");
+	   				System.out.println();
+	   				System.out.println(outJsonPath);
+	   				System.out.println(outHtmlSummaryPath);
+	   				System.out.println(outHtmlDetailPath); 	   					
+	   				System.out.println();
+	   				System.out.println("******************************************************");
+   				}
+  
 
 //    			for (File file: files ) {
 //    				System.out.println("Got file: " + file.getName());		
@@ -214,18 +232,6 @@ public class Main {
     			}
             }
 			
-			OutputStream output = new FileOutputStream(PROPS_FILE);
-			props.store(output,  null);
-			
-			System.out.println("---------- Fileinspector Scanning Properties ----------");
-			System.out.println("File: " + propFile);
-			System.out.println();
-			System.out.println(props.toString().replace(", ", "\n").replace("{", "").replace("}", ""));  
-			System.out.println("------------------------------------------------");
-			System.out.println("See Output Files: ");
-			System.out.println(outJsonPath);
-			System.out.println(outHtmlSummaryPath);
-			System.out.println(outHtmlDetailPath);
 			
 
 			
@@ -238,6 +244,19 @@ public class Main {
 		
 		
 		
+	}
+	
+	private static void savePropsFile(String propFile) throws IOException {
+		OutputStream output = new FileOutputStream(propFile);
+		props.store(output,  null);
+	
+		System.out.println("*********  Fileinspector Scanning Properties  ********");
+		System.out.println("File: " + propFile);
+		System.out.println();
+		System.out.println(props.toString().replace(", ", "\n").replace("{", "").replace("}", ""));  
+		System.out.println("******************************************************");
+
+
 	}
 	
 	private static String runDecompile(File file, File tempDir, boolean isLinux, boolean keepTemp, boolean isVerbose) throws IOException {
@@ -297,7 +316,16 @@ public class Main {
 		String jsonStr = response.getCommandOutput();
 		//System.out.println("Got jsonStr single object: " + jsonStr.startsWith("{"));
 		//if (jsonStr.startsWith("{")) jsonStr = "[" + jsonStr + "]";		// Convert to a List of one object because ObjectMapper is looking for a list
-		System.out.println("Got jsonStr: " + jsonStr);
+		//System.out.println("Got jsonStr: " + jsonStr);
+		
+		if (jsonStr.length() == 0 ) {
+			System.out.println("******************************************************");
+			System.out.println();
+			System.out.println("     No matches found");
+			System.out.println();
+			System.out.println("******************************************************");
+			return null;
+		}
 		
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);	// Powershell Select-String returns single object, or a list of objects

@@ -27,7 +27,7 @@ public class FileUtil {
 
 	public static Collection<File> listFilesByExt(File dir, FIND_EXT fe) {
     	String ext = fe.toString();
-    	if ( "clazz".equals(ext)) ext = "class";			// clazz is used as the enum because "class" is illegal name
+    	if ( "clazz".equals(ext)) ext = "class";			// clazz is used as the enum because 
 	    Set<File> fileTree = new HashSet<File>();
 	    if(dir==null||dir.listFiles()==null){
 	        return fileTree;
