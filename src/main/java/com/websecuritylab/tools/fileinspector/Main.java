@@ -14,7 +14,9 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.cli.CommandLine;
@@ -28,6 +30,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.profesorfalken.jpowershell.PowerShell;
+import com.profesorfalken.jpowershell.PowerShellNotAvailableException;
 import com.profesorfalken.jpowershell.PowerShellResponse;
 import com.websecuritylab.tools.fileinspector.FileUtil.REPORT_TYPE;
 import com.websecuritylab.tools.fileinspector.model.PowerShellSearchResult;
@@ -151,7 +154,7 @@ public class Main {
 	    					break;
         			}
         			   
-        			System.out.println("Got Files in Directory: " + files);
+        			//System.out.println("Got Files in Directory: " + files);
                  }
                 else {
         			File f = new File(filePath);
@@ -235,7 +238,7 @@ public class Main {
 			
 
 			
-		} catch (Exception e) {
+		} catch (PowerShellException | IOException e) {
 			e.printStackTrace();
 			//return;
 		} 
@@ -282,7 +285,7 @@ public class Main {
 
 	}
 
-	private static Report searchRecursiveForString( String rootPath, String searchStr, boolean isLinux, boolean isVerbose) throws IOException {
+	private static Report searchRecursiveForString( String rootPath, String searchStr, boolean isLinux, boolean isVerbose) throws IOException, PowerShellException {
 	
 		//String searchStr = "'rijndael|blowfish'";
 	
@@ -306,11 +309,8 @@ public class Main {
 	//	  "Matches" : [ "Blowfish" ]
 	//	} ]
 				
-		System.out.println ("----------------Running powershell command--------------------");
-		System.out.println (cmd);		
-		System.out.println ("--------------------------------------------------------------");
-		PowerShellResponse response = PowerShell.executeSingleCommand(cmd);
-		
+		//PowerShellResponse response = PowerShell.executeSingleCommand(cmd);
+		PowerShellResponse response = runPowerShell(cmd);
 		Report report = new Report("MyApp");
 		
 		String jsonStr = response.getCommandOutput();
@@ -357,7 +357,39 @@ public class Main {
 		return report;
 	}
 	
-	
+	private static PowerShellResponse runPowerShell(String cmd) throws PowerShellException {
+		long startMS = System.currentTimeMillis();
+
+		System.out.println("----------------Running powershell command--------------------");
+		System.out.println(cmd);
+		PowerShellResponse response = PowerShell.executeSingleCommand(cmd);
+		return response;
+//		try (PowerShell powerShell = PowerShell.openSession()) {
+//		    //Execute a command in PowerShell session
+//		    PowerShellResponse response = powerShell.executeCommand("Get-Process");
+//
+//		    // Increase timeout to give enough time to the script to finish
+//			Map<String, String> config = new HashMap<String, String>();
+//			config.put("maxWait", "80000");
+//
+//			// Execute script
+//			response = powerShell.configuration(config).executeScript(cmd);
+//
+//			// Print results if the script
+//			System.out.println("Script output:" + response.getCommandOutput());
+//			
+//			long endMS = System.currentTimeMillis();
+//			// finding the time difference and converting it into seconds
+//			float elapsed = (endMS - startMS) / 1000F;
+//			System.out.println("PowerShell scan time: " + elapsed + " seconds");
+//			System.out.println("--------------------------------------------------------------");
+//
+//			return response;
+//		} catch (PowerShellNotAvailableException ex) {
+//			throw new PowerShellException(ex.getCause());
+//		}
+		
+	}
 	//Get-ChildItem C:/Users/scott/AppData/Local/Temp/fileinspector/decompiled/*.java -Recurse | Select-String -Pattern "parseTrie" | group path | select name
 	private static String searchRecursiveForStringOld( String rootPath, String searchText, boolean isLinux, boolean isVerbose) throws IOException {
 		String HR_START = ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
