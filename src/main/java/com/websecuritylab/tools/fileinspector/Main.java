@@ -1,12 +1,9 @@
 package com.websecuritylab.tools.fileinspector;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -18,9 +15,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,11 +34,17 @@ import com.websecuritylab.tools.fileinspector.model.PowerShellSearchResult;
 import com.websecuritylab.tools.fileinspector.model.PowerShellSearchResult_ObjectMatches;
 import com.websecuritylab.tools.fileinspector.model.Report;
 
+import com.websecuritylab.tools.fileinspector.glob.FileMatcher;
+
 
 public class Main {
 	
 	private enum SOURCE_TYPE { A, C, S }			// [A]rchive file (WAR/EAR/JAR), [C]LASS files, [S]OURCE files.
-	private enum AUDIT_DIRECTORY { Y, N, T }		// [Y]es (directory), [N]o (single file), [T]emp (previously extracted temp diretory).
+//	private enum AUDIT_DIRECTORY { Y, N, T }		// [Y]es (directory), [N]o (single file), [T]emp (previously extracted temp diretory).
+	
+	private static String COMMA = ",";
+	private static String PIPE = "|";
+	private static String COMMENT = "///";
 	
 	public enum FIND_EXT { jar, war, ear, java, clazz }
     private static final Logger logger = LoggerFactory.getLogger( Main.class );  
@@ -56,31 +59,61 @@ public class Main {
 	private static String outJsonPath=null;
 	private static String outHtmlSummaryPath=null;
 	private static String outHtmlDetailPath=null;
+	
+	private static String searchPatterns;
+	private static boolean searchPatternsFileOnCommandLine = false;
+
+	private static String includeGlobs;
+	private static boolean includeGlobFileOnCommandLine = false;
+	private static String excludeGlobs;
+	private static boolean excludeGlobFileOnCommandLine = false;
+	
 
 	public static void main(String[] args) {
+
 		String mainCmd = SYNTAX + String.join(" ", Arrays.asList(args));
 		logger.info(mainCmd);
-		
+
 		CommandLine cl = CliOptions.generateCommandLine(args);
+		
 		String propFile = PROPS_FILE;
-		if (cl.getOptionValue(CliOptions.PROP_FILE) != null ) propFile = cl.getOptionValue(CliOptions.PROP_FILE);
+		if (cl.getOptionValue(CliOptions.PROPS_FILE) != null ) propFile = cl.getOptionValue(CliOptions.PROPS_FILE);
+
+		
 
 		try ( InputStream fis = new FileInputStream(propFile); ) {
 			props.load(fis);
-			logger.info("Got prop AUDIT_DIR: " + props.getProperty(CliOptions.AUDIT_DIR_PATH));
+			logger.info("Got prop AUDIT_DIR: " + props.getProperty(CliOptions.ROOT_DIR_PATH));
 		} catch (IOException e) {
-			props.setProperty(CliOptions.AUDIT_DIRECTORY, "N");
+			//			props.setProperty(CliOptions.AUDIT_DIRECTORY, "N");
 			props.setProperty(CliOptions.SOURCE_TYPE, "A");
-			props.setProperty(CliOptions.AUDIT_DIR_PATH, ".");
+			props.setProperty(CliOptions.ROOT_DIR_PATH, ".");
 			props.setProperty(CliOptions.CFR_JAR, "cfr-0.147.jar");
-			
+
 		}	
-	
+		
+		// These file names will override the saved prop file values if they are present on the commandline 
+		//if (cl.getOptionValue(CliOptions.SEARCH_PATTERN_FILE) != null ) 
+		//	props.setProperty( CliOptions.SEARCH_PATTERN_FILE, cl.getOptionValue(CliOptions.SEARCH_PATTERN_FILE));
+		
+		if (cl.getOptionValue(CliOptions.SEARCH_PATTERN_FILE) != null ) {
+			searchPatternsFileOnCommandLine = true;
+			props.setProperty( CliOptions.SEARCH_PATTERN_FILE, cl.getOptionValue(CliOptions.SEARCH_PATTERN_FILE));
+		}
+		
+		if (cl.getOptionValue(CliOptions.INCLUDE_GLOB_FILE) != null ) {
+			includeGlobFileOnCommandLine = true;
+			props.setProperty( CliOptions.INCLUDE_GLOB_FILE, cl.getOptionValue(CliOptions.INCLUDE_GLOB_FILE));
+		}
+		if (cl.getOptionValue(CliOptions.EXCLUDE_GLOB_FILE) != null ) {
+			excludeGlobFileOnCommandLine = true;
+			props.setProperty( CliOptions.EXCLUDE_GLOB_FILE, cl.getOptionValue(CliOptions.EXCLUDE_GLOB_FILE));
+		}
+
 		boolean isVerbose = false;
 		boolean isKeepTemp = false;
-		boolean isLinux = false;
-		boolean hasRegExFile = false;
-		try (BufferedReader buf = new BufferedReader(new InputStreamReader(System.in))) {
+		boolean isLinux = false;			// Linux is no longer supported with the PowerShell based searching.  But it might be in the future	
+		try {
 			if (cl.hasOption(CliOptions.HELP)) {
 				CliOptions.printHelp(SYNTAX);
 				FileUtil.finish();
@@ -88,168 +121,193 @@ public class Main {
 
 			if (cl.hasOption(CliOptions.VERBOSE)) isVerbose = true;
 			if (cl.hasOption(CliOptions.KEEP_TEMP)) isKeepTemp = true;
-			if (cl.hasOption(CliOptions.IS_LINUX)) isLinux = true;
-			if (cl.hasOption(CliOptions.HAS_REGEX_FILE)) hasRegExFile = true;
+			//if (cl.hasOption(CliOptions.IS_LINUX)) isLinux = true;	// Linux is no longer supported with the PowerShell based searching.  But it might be in the future
+			//if (cl.hasOption(CliOptions.HAS_REGEX_FILE)) hasRegExFile = true;
 			if (cl.getOptionValue(CliOptions.CFR_JAR) != null )  props.setProperty(CliOptions.CFR_JAR, cl.getOptionValue(CliOptions.CFR_JAR));
 
-            if (cl.hasOption(CliOptions.INTERACTIVE)) {
-            	handlePropInput(buf,CliOptions.AUDIT_DIRECTORY, false);
-            	AUDIT_DIRECTORY auditDirectory = Enum.valueOf(AUDIT_DIRECTORY.class, props.getProperty(CliOptions.AUDIT_DIRECTORY).toUpperCase());
-            	
-            	boolean isDirectory = true;
-             	String appName = null;
-            	switch( auditDirectory )
-    			{
-    				case T:
-                        handlePropInput(buf,CliOptions.TEMP_DIR_PATH, true);
-    					break;
-    				case Y:
-                		handlePropInput(buf,CliOptions.SOURCE_TYPE, false);
-                        handlePropInput(buf,CliOptions.AUDIT_DIR_PATH, true);
-                   	    appName = props.getProperty(CliOptions.AUDIT_DIR_PATH);
-                    	int lastSlash = appName.lastIndexOf("/");			// TODO: Handle Windows backslash too?
-                       	if ( lastSlash == appName.length() - 1 ) appName = appName.substring(0,lastSlash);	// Trim last slash 
-                       	lastSlash = appName.lastIndexOf("/");
-                    	if ( lastSlash > 0 ) appName = appName.substring(lastSlash+1);
-                    	props.setProperty(CliOptions.APP_NAME, appName );              	          	
-    					break;
-    				case N:
-    	            	isDirectory = false;
-                		handlePropInput(buf,CliOptions.SOURCE_TYPE, false);
-                        handlePropInput(buf,CliOptions.AUDIT_DIR_PATH, true);
-                      	handlePropInput(buf,CliOptions.AUDIT_FILE, false);
-                      	appName = props.getProperty(CliOptions.AUDIT_FILE);
-                      	int lastDot = appName.lastIndexOf(".");
-                      	if ( lastDot > 0 ) appName = appName.substring(0, lastDot);
-                      	props.setProperty(CliOptions.APP_NAME, appName );
-    					break;
-    					 
-    			}
+			if (cl.hasOption(CliOptions.PROMPT_PROPS)) {
+				 getPromptInput();
+			} 
 
+			// handlePropInput(buf,CliOptions.IS_LINUX, false);
+			String dirPath = props.getProperty(CliOptions.ROOT_DIR_PATH);
+			if (dirPath == null) {
+					FileUtil.abort("Aborting program. The root source directory does not exist:" + dirPath);
+			}               
 
-                if ( hasRegExFile ) handlePropInput(buf,CliOptions.REGEX_FILE, false);
-                else handlePropInput(buf,CliOptions.REGEX_STRING, false);
-                
-                handlePropInput(buf,CliOptions.APP_NAME, false);
-                
-               // handlePropInput(buf,CliOptions.IS_LINUX, false);
-                String dirPath = props.getProperty(CliOptions.AUDIT_DIR_PATH);
-                String filePath = dirPath + props.getProperty(CliOptions.AUDIT_FILE);
-    			SOURCE_TYPE sourceType = Enum.valueOf(SOURCE_TYPE.class, props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase());
-                 
-                Collection<File> files = null;
-                if ( isDirectory ) {
-        			File f = new File(dirPath);
-        			switch(sourceType) {
-	    				case A: 
-	    					files = FileUtil.listFilesByExt(f, FIND_EXT.jar); 
-	    					files.addAll(FileUtil.listFilesByExt(f, FIND_EXT.war)); 
-	    					files.addAll(FileUtil.listFilesByExt(f, FIND_EXT.ear)); 
-	    					break;
-	    				case S: 
-	    					files = FileUtil.listFilesByExt(f, FIND_EXT.java); 
-	    					break;
-	    				case C: 
-	    					files = FileUtil.listFilesByExt(f, FIND_EXT.clazz); 
-	    					break;
-        			}
-        			   
-        			//System.out.println("Got Files in Directory: " + files);
-                 }
-                else {
-        			File f = new File(filePath);
-                	files = Arrays.asList(f);
-                }
-                
-                String searchPath = dirPath;
-                
-                if ( auditDirectory != AUDIT_DIRECTORY.T ) {
-            		if ( sourceType == SOURCE_TYPE.A || sourceType == SOURCE_TYPE.C  ) {
-            			File tempDir = Util.createTempDir(TEMP_DIR);
-            			for (File file: files ) {
-              				searchPath = runDecompile(file, tempDir, isLinux, isKeepTemp, isVerbose);	
-               				props.setProperty(CliOptions.TEMP_DIR_PATH, searchPath);
-            			}       		
-            		}              	
-                }
-                else {
-                	searchPath = props.getProperty(CliOptions.TEMP_DIR_PATH);
-                }
+				//String filePath = dirPath + props.getProperty(CliOptions.AUDIT_FILE);
+				SOURCE_TYPE sourceType = Enum.valueOf(SOURCE_TYPE.class, props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase());
 
-                String searchRegEx="";
-                if ( hasRegExFile ) {
-                	List<String> lines = Util.readNonCommentLines(props.getProperty(CliOptions.REGEX_FILE),"///");
-                	int i = 0;
-                	for (String line : lines) {
-                		searchRegEx += line;
-                	    if (i++ != lines.size() - 1) { searchRegEx += "|"; };				// Add '|' if NOT last line
-                	}
-                	//searchRegEx = Util.readFile(props.getProperty(CliOptions.REGEX_FILE));
-                	
-                } else {
-            		searchRegEx = props.getProperty(CliOptions.REGEX_STRING);     
-                }
-                
-                
-                
-                
-   				Report report = searchRecursiveForString(searchPath, searchRegEx, isLinux, isVerbose);
-   				
-                savePropsFile(propFile);
-                 				
-   				if ( report != null ) {
-   	 				ObjectMapper mapper = new ObjectMapper();
-   	   				//String uglyReport = mapper.writeValueAsString(report);
-   	   				String uglyReport = mapper.writeValueAsString(report).replace("script",  "zcript");  		// </script> tags in LINE match breaks the HTML rendering
-   	  				String prettyReport = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);				
-   	  				
-   	  				String app = props.getProperty(CliOptions.APP_NAME);
-   	  				outJsonPath = FileUtil.outputReport(REPORT_TYPE.json, props, outFolder, app, prettyReport);
-   	  				outHtmlSummaryPath = FileUtil.outputReport(REPORT_TYPE.summary,  props, outFolder, app, uglyReport);
-   	  				outHtmlDetailPath = FileUtil.outputReport(REPORT_TYPE.detail,  props, outFolder, app, uglyReport);
-	   	 			
-	   	 			System.out.println("***************  Output Files  ***********************");
-	   				System.out.println();
-	   				System.out.println(outJsonPath);
-	   				System.out.println(outHtmlSummaryPath);
-	   				System.out.println(outHtmlDetailPath); 	   					
-	   				System.out.println();
-	   				System.out.println("******************************************************");
-   				}
-  
+				Collection<File> files = null;
+				//                if ( isDirectory ) {
+				File f = new File(dirPath);
+				switch(sourceType) {
+				case A: 
+					files = FileUtil.listFilesByExt(f, FIND_EXT.jar); 
+					files.addAll(FileUtil.listFilesByExt(f, FIND_EXT.war)); 
+					files.addAll(FileUtil.listFilesByExt(f, FIND_EXT.ear)); 
+					break;
+				case S: 
+					files = FileUtil.listFilesByExt(f, FIND_EXT.java); 
+					break;
+				case C: 
+					files = FileUtil.listFilesByExt(f, FIND_EXT.clazz); 
+					break;
+				}
 
-//    			for (File file: files ) {
-//    				System.out.println("Got file: " + file.getName());		
+				System.out.println("Got Files in Directory: " + files);
+				//                 }
+				//                else {
+				//        			//File f = new File(filePath);
+				//                	files = Arrays.asList(f);
+				//                }
+
+				String searchPath = dirPath;
+
+				//                if ( auditDirectory != AUDIT_DIRECTORY.T ) {
+				if ( sourceType == SOURCE_TYPE.A || sourceType == SOURCE_TYPE.C  ) {
+					File tempDir = Util.createTempDir(TEMP_DIR);
+					for (File file: files ) {
+						searchPath = runDecompile(file, tempDir, isLinux, isKeepTemp, isVerbose);	
+						props.setProperty(CliOptions.TEMP_DIR_PATH, searchPath);
+					}       		
+				}              	
+				//                }
+				//                else {
+				//                	searchPath = props.getProperty(CliOptions.TEMP_DIR_PATH);
+				//                }
+
+//				String searchRegEx="";
+//				if ( props.getProperty(CliOptions.SEARCH_PATTERN_FILE) != null ) {
+//					searchRegEx = Util.getSeparatedStringFromFile(props.getProperty(CliOptions.SEARCH_PATTERN_FILE),PIPE,COMMENT);
+////					List<String> lines = Util.readNonCommentLines(props.getProperty(CliOptions.SEARCH_PATTERN_FILE),COMMENT);
+////					int i = 0;
+////					for (String line : lines) {
+////						searchRegEx += line;
+////						if (i++ != lines.size() - 1) { searchRegEx += "|"; };				// Add '|' if NOT last line
+////					}
+//					//searchRegEx = Util.readFile(props.getProperty(CliOptions.REGEX_FILE));
 //
-//    				//run(sourceType, isLinux, isKeepTemp, isVerbose);	
-//    			}
-    			
-    			
-                logger.info("Running: " + SYNTAX + " -s " +   props.getProperty(CliOptions.AUDIT_DIR_PATH));
-            } else {
-            	if (props.getProperty(CliOptions.AUDIT_DIR_PATH) != null) {
-    				if (!FileUtil.fileFolderExists( props.getProperty(CliOptions.AUDIT_DIR_PATH)))
-    					FileUtil.abort("Aborting program.  The source directory (" +  props.getProperty(CliOptions.AUDIT_DIR_PATH) + ") does not exist.");
-    			} else {
-    				FileUtil.abort("Aborting program.  The root source directory (-s) option is required.");
-    			}
-            }
-			
-			
+//				} else {
+//					searchRegEx = props.getProperty(CliOptions.SEARCH_PATTERN);     
+//				}
 
-			
-		} catch (PowerShellException | IOException e) {
+
+
+
+				Report report = searchRecursiveForString(searchPath, searchPatterns, isLinux, isVerbose);
+
+				savePropsFile(propFile);
+
+				if ( report != null ) {
+					ObjectMapper mapper = new ObjectMapper();
+					//String uglyReport = mapper.writeValueAsString(report);
+					String uglyReport = mapper.writeValueAsString(report).replace("script",  "zcript");  		// </script> tags in LINE match breaks the HTML rendering
+					String prettyReport = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);				
+
+					String app = props.getProperty(CliOptions.APP_NAME);
+					outJsonPath = FileUtil.outputReport(REPORT_TYPE.json, props, outFolder, app, prettyReport);
+					outHtmlSummaryPath = FileUtil.outputReport(REPORT_TYPE.summary,  props, outFolder, app, uglyReport);
+					outHtmlDetailPath = FileUtil.outputReport(REPORT_TYPE.detail,  props, outFolder, app, uglyReport);
+
+					System.out.println("***************  Output Files  ***********************");
+					System.out.println();
+					System.out.println(outJsonPath);
+					System.out.println(outHtmlSummaryPath);
+					System.out.println(outHtmlDetailPath); 	   					
+					System.out.println();
+					System.out.println("******************************************************");
+				}
+
+
+				//    			for (File file: files ) {
+				//    				System.out.println("Got file: " + file.getName());		
+				//
+				//    				//run(sourceType, isLinux, isKeepTemp, isVerbose);	
+				//    			}
+
+
+				logger.info("Running: " + SYNTAX + " -s " +   props.getProperty(CliOptions.ROOT_DIR_PATH));
+
+
+
+		} catch (IOException | PowerShellException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
-			//return;
-		} 
+		}
 
-		
-		
-		
-		
+
+
+
+	}
+	
+	private static void getPromptInput() throws IOException {
+		try (BufferedReader buf = new BufferedReader(new InputStreamReader(System.in))) {
+			String appName = null;
+
+			//            	switch( auditDirectory )
+			//    			{
+			//    				case T:
+			//                        handlePropInput(buf,CliOptions.TEMP_DIR_PATH, true);
+			//    					break;
+
+
+			handlePropInput(buf,CliOptions.SOURCE_TYPE);
+			//handlePropInput(buf,CliOptions.ROOT_DIR_PATH, true);				// This was used when handle input added the trailing slash.  Not sure if this really helpful with the PowerShell search approach
+			handlePropInput(buf,CliOptions.ROOT_DIR_PATH);
+			appName = props.getProperty(CliOptions.ROOT_DIR_PATH);
+			int lastSlash = appName.lastIndexOf("/");			// TODO: Handle Windows backslash too?
+			if ( lastSlash == appName.length() - 1 ) appName = appName.substring(0,lastSlash);	// Trim last slash 
+			lastSlash = appName.lastIndexOf("/");
+			if ( lastSlash > 0 ) appName = appName.substring(lastSlash+1);
+			props.setProperty(CliOptions.APP_NAME, appName );  
+
+			//if ( props.getProperty(CliOptions.SEARCH_PATTERN_FILE) == null ) handlePropInput(buf,CliOptions.SEARCH_PATTERN);
+			if ( !searchPatternsFileOnCommandLine ) {
+								// Prompt for EITHER input or filename, remembering which one was previously entered
+				if ( hasProp(CliOptions.SEARCH_PATTERN_FILE)) handlePropInputs(buf,CliOptions.SEARCH_PATTERN_FILE, CliOptions.SEARCH_PATTERN);
+				else 										  handlePropInputs(buf,CliOptions.SEARCH_PATTERN, CliOptions.SEARCH_PATTERN_FILE);
+				
+				if (hasProp(CliOptions.SEARCH_PATTERN)) 		  searchPatterns = props.getProperty(CliOptions.SEARCH_PATTERN);		// If empty string, the getProperty returns the String "null" for some reason			
+				else if (hasProp(CliOptions.SEARCH_PATTERN_FILE)) searchPatterns = Util.getSeparatedStringFromFile(props.getProperty(CliOptions.SEARCH_PATTERN_FILE),PIPE,COMMENT);
+			}
+
+			
+			
+			if ( !includeGlobFileOnCommandLine ) {
+															// Prompt for EITHER input or filename, remembering which one was previously entered
+				if ( hasProp(CliOptions.INCLUDE_GLOB_FILE)) handlePropInputs(buf,CliOptions.INCLUDE_GLOB_FILE, CliOptions.INCLUDE_GLOB);
+				else 										handlePropInputs(buf,CliOptions.INCLUDE_GLOB, CliOptions.INCLUDE_GLOB_FILE);
+					
+				if (hasProp(CliOptions.INCLUDE_GLOB)) 			includeGlobs = props.getProperty(CliOptions.INCLUDE_GLOB);		// If empty string, the getProperty returns the String "null" for some reason			
+				else if (hasProp(CliOptions.INCLUDE_GLOB_FILE)) includeGlobs = Util.getSeparatedStringFromFile(props.getProperty(CliOptions.INCLUDE_GLOB_FILE),COMMA,COMMENT);
+			}
+			if ( !excludeGlobFileOnCommandLine ) {
+															// Prompt for EITHER input or filename, remembering which one was previously entered
+				if ( hasProp(CliOptions.EXCLUDE_GLOB_FILE)) handlePropInputs(buf,CliOptions.EXCLUDE_GLOB_FILE, CliOptions.EXCLUDE_GLOB);
+				else										handlePropInputs(buf,CliOptions.EXCLUDE_GLOB, CliOptions.EXCLUDE_GLOB_FILE);
+				
+				if (hasProp(CliOptions.EXCLUDE_GLOB)) 			excludeGlobs = props.getProperty(CliOptions.EXCLUDE_GLOB);					
+				else if (hasProp(CliOptions.EXCLUDE_GLOB_FILE)) excludeGlobs = Util.getSeparatedStringFromFile(props.getProperty(CliOptions.EXCLUDE_GLOB_FILE),COMMA,COMMENT);				
+			}
+
+			handlePropInput(buf,CliOptions.APP_NAME);
+
+			
+		}
+	}
+	
+	private static boolean hasProp(String key) {
+		return ( props.getProperty(key) != null && props.getProperty(key).length() > 0 );
 	}
 	
 	private static void savePropsFile(String propFile) throws IOException {
+	    Set<String> keys = props.stringPropertyNames();
+	    for (String key : keys) {	  
+	    	String val = props.getProperty(key);
+	    	if ( val == null || val.length() == 0 ) props.remove(key);
+	    }
+	
 		OutputStream output = new FileOutputStream(propFile);
 		props.store(output,  null);
 	
@@ -332,9 +390,16 @@ public class Main {
 
 		try {
 			List<PowerShellSearchResult> psResults = mapper.readValue(jsonStr, new TypeReference<List<PowerShellSearchResult>>(){});
-			
+			FileMatcher fm = new FileMatcher(rootPath, includeGlobs, excludeGlobs);
 			for(PowerShellSearchResult r : psResults) {
-				report.addFileMatch(r);
+				// System.out.println("CCCCCCCCChecking file: " + r.Path);						
+				if (fm.includesFile(r.Path)) {
+					System.out.println("CCCCCCcchecking ("+( !fm.excludesFile(r.Path) )+") EXCLUDE file: " + r.Path);						
+					if ( !fm.excludesFile(r.Path) ) {
+						System.out.println("AAAAAAAdding file: " + r.Path);						
+						report.addFileMatch(r);
+					}
+				}
 			}
 						
 		} catch (MismatchedInputException e) {
@@ -362,32 +427,24 @@ public class Main {
 
 		System.out.println("----------------Running powershell command--------------------");
 		System.out.println(cmd);
-		PowerShellResponse response = PowerShell.executeSingleCommand(cmd);
-		return response;
-//		try (PowerShell powerShell = PowerShell.openSession()) {
-//		    //Execute a command in PowerShell session
-//		    PowerShellResponse response = powerShell.executeCommand("Get-Process");
-//
-//		    // Increase timeout to give enough time to the script to finish
-//			Map<String, String> config = new HashMap<String, String>();
-//			config.put("maxWait", "80000");
-//
-//			// Execute script
-//			response = powerShell.configuration(config).executeScript(cmd);
-//
-//			// Print results if the script
-//			System.out.println("Script output:" + response.getCommandOutput());
-//			
-//			long endMS = System.currentTimeMillis();
-//			// finding the time difference and converting it into seconds
-//			float elapsed = (endMS - startMS) / 1000F;
-//			System.out.println("PowerShell scan time: " + elapsed + " seconds");
-//			System.out.println("--------------------------------------------------------------");
-//
-//			return response;
-//		} catch (PowerShellNotAvailableException ex) {
-//			throw new PowerShellException(ex.getCause());
-//		}
+		//PowerShellResponse response = PowerShell.executeSingleCommand(cmd);
+		//PowerShellResponse response = PowerShell.configuration(config).executeSingleCommand(cmd); This DID NOT work.  Need a PS instance=
+		//return response;
+		
+		try (PowerShell powerShell = PowerShell.openSession()) {					// This is used for calling multiple scripts, and setting config
+			Map<String, String> config = new HashMap<String, String>();
+			config.put("maxWait", "60000");
+			PowerShellResponse response = powerShell.configuration(config).executeCommand(cmd);
+			
+			long endMS = System.currentTimeMillis();
+			float elapsed = (endMS - startMS) / 1000F;
+			System.out.println("PowerShell scan time: " + elapsed + " seconds");
+			System.out.println("--------------------------------------------------------------");
+
+			return response;
+		} catch (PowerShellNotAvailableException ex) {
+			throw new PowerShellException(ex.getCause());
+		}
 		
 	}
 	//Get-ChildItem C:/Users/scott/AppData/Local/Temp/fileinspector/decompiled/*.java -Recurse | Select-String -Pattern "parseTrie" | group path | select name
@@ -449,18 +506,44 @@ public class Main {
 		
 	}
 
-    private static void handlePropInput(BufferedReader buf, String key, boolean hasTrailingSlash) throws IOException {
+    //private static void handlePropInput(BufferedReader buf, String key, boolean hasTrailingSlash) throws IOException {
+    private static void handlePropInput(BufferedReader buf, String key) throws IOException {
         System.out.print("Enter the " + key + " (" + props.getProperty(key) + "): ");
         String entry = buf.readLine();
         if (!entry.equals("")) {
-            if (hasTrailingSlash && (!entry.endsWith("/") && !entry.endsWith("\\")) )  props.setProperty( key, entry + "/" );
-            else props.setProperty( key, entry);
+            //if (hasTrailingSlash && (!entry.endsWith("/") && !entry.endsWith("\\")) )  props.setProperty( key, entry + "/" );
+        	props.setProperty( key, entry);
         }      
     }
-    private static String handleTextInput(BufferedReader buf, String key) throws IOException {
-        System.out.print("Enter the " + key + " : ");
-        String entry = buf.readLine();
-
-        return entry;     
+    
+    private static void handlePropInputs(BufferedReader buf, String key1, String key2) throws IOException {
+        System.out.print("Enter the " + key1 + " (" + props.getProperty(key1) + ") or SPACE to CLEAR and/or prompt for: " + key2);
+        String entry1 = buf.readLine();
+        if (!entry1.equals("")) {
+            //if (hasTrailingSlash && (!entry.endsWith("/") && !entry.endsWith("\\")) )  props.setProperty( key, entry + "/" );
+        	if ( !entry1.equals(" ") )  {
+            	props.setProperty( key1, entry1.trim());			// Converts space into empty string
+            	props.setProperty( key2, "");						// ONLY one of the two keys will be valid ( Ex: prompt entry, or file path )
+            }
+        	else							// SPACE was pressed, prompt for key2
+        	{
+            	props.setProperty( key1, "");
+                System.out.print("Enter the " + key2 + " (" + props.getProperty(key2) + "): ");
+                String entry2 = buf.readLine();
+                if ( entry2.equals(" ") ) props.setProperty( key2, "");
+            	else 
+                {
+                	props.setProperty( key1, "");					// ONLY one of the two keys will be valid ( Ex: prompt entry, or file path )
+                	props.setProperty( key2, entry2.trim());		// Converts space into empty string
+                }   
+            }
+        }
     }
+    
+//    private static String handleTextInput(BufferedReader buf, String key) throws IOException {
+//        System.out.print("Enter the " + key + " : ");
+//        String entry = buf.readLine();
+//
+//        return entry;     
+//    }
 }

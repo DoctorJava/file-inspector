@@ -9,22 +9,26 @@ public class CliOptions {
 
     public static final String HELP = "help";
     //public static final String CREATE = "create";
-    public static final String INTERACTIVE = "interactive";
-    public static final String PROP_FILE = "prop-file";
+    public static final String PROMPT_PROPS = "prompt-props";
+    public static final String PROPS_FILE = "props-file";
     //public static final String REPORT_JSON = "report-json";
     
     public static final String CFR_JAR = "cfr-jar";
     public static final String SOURCE_TYPE = "source-type";
     
-    public static final String AUDIT_DIRECTORY = "audit-directory";
-	public static final String AUDIT_DIR_PATH = "audit-dir-path";
-    public static final String AUDIT_FILE = "audit-file";
+    //public static final String AUDIT_DIRECTORY = "audit-directory";
+	public static final String ROOT_DIR_PATH = "root-dir-path";
+    //public static final String AUDIT_FILE = "audit-file";
 	public static final String TEMP_DIR_PATH = "temp-dir-path";
  
-    public static final String HAS_REGEX_FILE = "has-regex-file";
-    public static final String REGEX_FILE = "regex-file";
-    public static final String REGEX_STRING = "regex-string";
+    //public static final String HAS_REGEX_FILE = "has-regex-file";
+    public static final String SEARCH_PATTERN = "search-pattern";
+    public static final String SEARCH_PATTERN_FILE = "search-pattern-file";
     
+    public static final String INCLUDE_GLOB = "include-glob";
+    public static final String INCLUDE_GLOB_FILE = "include-glob-file";
+    public static final String EXCLUDE_GLOB = "exclude-glob";
+    public static final String EXCLUDE_GLOB_FILE = "exclude-glob-file";
     
 	//public static final String SOURCE_DIR = "source-directory";
     //public static final String SOURCE_FILE = "source-file";
@@ -33,38 +37,73 @@ public class CliOptions {
 //    public static final String SUBPACKAGES = "subpackages";
    
     public static final String KEEP_TEMP = "keep-temp";
-	public static final String IS_LINUX = "is-linux";
     
     public static final String VERBOSE = "verbose";
     private static final PrintStream OUT = System.out;
-    
+
+	// public static final String IS_LINUX = "is-linux";				// Linux is no longer supported with the PowerShell based searching.  But it might be in the future
+//    final Option isLinuxOption = Option.builder("l")
+//            .required(false)
+//            .hasArg(false)
+//            .longOpt(IS_LINUX)
+//            .desc("Running on a Linux operating system.")
+//            .build(); 
+    // options.addOption(isLinuxOption);
+   
     private CliOptions() {
     }
 
     public static final Options getOptions() {
+        
         final Option helpOption = Option.builder("h")
                 .required(false)
                 .hasArg(false)
                 .longOpt(HELP)
                 .desc("Print help.")
                 .build();
-        final Option inputOption = Option.builder("i")
-                .required(false)
-                .hasArg(false)
-                .longOpt(INTERACTIVE)
-                .desc("Interactive input prompting for options to be used.  Entries will be saved in the DEFAULT properties file.")
-                .build();
-        final Option propFileOption = Option.builder("p")
+
+        final Option includeGlobOption = Option.builder("i")
                 .required(false)
                 .hasArg()
-                .longOpt(PROP_FILE)
-                .desc("Load options from specified properties file.")
+                .longOpt(INCLUDE_GLOB)
+                .desc("Required: Globs for files that are to be INCLUDED.  By default ALL files under rood directory are included.)")
+                .build();         
+        final Option includeGlobFileOption = Option.builder("if")
+                .required(false)
+                .hasArg()
+                .longOpt(INCLUDE_GLOB_FILE)
+                .desc("Required: Path to the FILE with Globs for files that are to be INCLUDED.  By default ALL files under rood directory are included.")
+                .build(); 
+        final Option excludeGlobOption = Option.builder("x")
+                .required(false)
+                .hasArg()
+                .longOpt(INCLUDE_GLOB)
+                .desc("Required: Globs for files that are to be EXCLUDED.  By default NO files under rood directory are excluded.)")
+                .build();         
+        final Option excludeGlobFileOption = Option.builder("xf")
+                .required(false)
+                .hasArg()
+                .longOpt(INCLUDE_GLOB_FILE)
+                .desc("Required: Path to the FILE with Globs for files that are to be EXCLUDED.  By default NO files under rood directory are excluded.")
+                .build(); 
+        
+        final Option inputOption = Option.builder("p")
+                .required(false)
+                .hasArg(false)
+                .longOpt(PROMPT_PROPS)
+                .desc("PROMPT for input options to be used.  Entries will be saved in the DEFAULT properties file.")
+                .build();
+        final Option propFileOption = Option.builder("pf")
+                .required(false)
+                .hasArg()
+                .longOpt(PROPS_FILE)
+                .desc("Load options from specified properties FILE.")
                 .build();
         final Option appNameOption = Option.builder("n")
                 .required(false)
                 .hasArg()
                 .longOpt(APP_NAME)
-                .desc("Required: Application Name that is appended to the HTML/JSON report names.")
+                .desc("Required: Application NAME that is appended to the HTML/JSON report names.")
                 .build();         
         final Option cfrJarOption = Option.builder("j")
                 .required(false)
@@ -78,29 +117,32 @@ public class CliOptions {
                 .required(false)
                 .hasArg()
                 .longOpt(SOURCE_TYPE)
-                .desc("Required: Type of java files to be scanned ([A]rchive file (WAR/EAR/JAR), [C]LASS files, [S]OURCE files.)")
+                .desc("Required: TYPE of  files to be scanned ([A]rchive file (WAR/EAR/JAR), [C]LASS files, [S]OURCE files.)")
                 .build();         
 
         
+        //
+        // TODO: handle using the TEMP file directory withough knowing the absolute PATH
+        //
         
-        final Option auditDirectoryOption = Option.builder("d")
+//        final Option auditDirectoryOption = Option.builder("d")
+//                .required(false)
+//                .hasArg()
+//                .longOpt(AUDIT_DIRECTORY)
+//                .desc("Required: Audit all files in a directory? ( [Y]es, [N]o )")
+//                .build();         
+        final Option auditDirPathOption = Option.builder("r")
                 .required(false)
                 .hasArg()
-                .longOpt(AUDIT_DIRECTORY)
-                .desc("Required: Audit all files in a directory? ( [Y]es, [N]o )")
-                .build();         
-        final Option auditDirPathOption = Option.builder("p")
-                .required(false)
-                .hasArg()
-                .longOpt(AUDIT_DIR_PATH)
+                .longOpt(ROOT_DIR_PATH)
                 .desc("Required: Path to directory of file(s).")
                 .build();         
-        final Option auditFileOption = Option.builder("f")
-                .required(false)
-                .hasArg()
-                .longOpt(AUDIT_FILE)
-                .desc("Required: Name of the file to be audited.")
-                .build(); 
+//        final Option auditFileOption = Option.builder("f")
+//                .required(false)
+//                .hasArg()
+//                .longOpt(AUDIT_FILE)
+//                .desc("Required: Name of the file to be audited.")
+//                .build(); 
         final Option tempDirPathOption = Option.builder("z")
                 .required(false)
                 .hasArg()
@@ -110,24 +152,28 @@ public class CliOptions {
         
         
         
-        final Option hasRegexFileOption = Option.builder("r")
-                .required(false)
-                .hasArg(false)
-                .longOpt(HAS_REGEX_FILE)
-                .desc("Required: Load file with Regex search expression.  ")
-                .build();         
-        final Option regexFileOption = Option.builder("x")
-                .required(false)
-                .hasArg()
-                .longOpt(REGEX_FILE)
-                .desc("Required: Path to the file to with RegEx search patterns.")
-                .build();         
-        final Option regexStringOption = Option.builder("s")
+//        final Option hasRegexFileOption = Option.builder("r")
+//                .required(false)
+//                .hasArg(false)
+//                .longOpt(HAS_REGEX_FILE)
+//                .desc("Required: Load file with Regex search expression.  ")
+//                .build();         
+        
+        final Option searchPatternOption = Option.builder("s")
                 .required(false)
                 .hasArg()
-                .longOpt(REGEX_STRING)
-                .desc("Required: Regex search expression.  For simple strings use | separator)")
+                .longOpt(SEARCH_PATTERN)
+                .desc("Required: SEARCH expression.  For simple strings use | separator)")
                 .build();         
+        final Option searchPatternFileOption = Option.builder("sf")
+                .required(false)
+                .hasArg()
+                .longOpt(SEARCH_PATTERN_FILE)
+                .desc("Required: Path to the FILE with SEARCH patterns.")
+                .build();       
+        
+        
+        
         
         final Option keeptempOption = Option.builder("k")
                 .required(false)
@@ -135,17 +181,12 @@ public class CliOptions {
                 .longOpt(KEEP_TEMP)
                 .desc("Keep temporary extracted *.class and *.java files.")
                 .build();    
-        final Option isLinuxOption = Option.builder("l")
-                .required(false)
-                .hasArg(false)
-                .longOpt(IS_LINUX)
-                .desc("Running on a Linux operating system.")
-                .build();    
+   
         final Option verboseOption = Option.builder("v")
                 .required(false)
                 .hasArg(false)
                 .longOpt(VERBOSE)
-                .desc("Includes all the compliant/non-compliant file paths in the output.")
+                .desc("Includes all the included and excluded file paths in the output.")
                 .build();
         final Options options = new Options();
         options.addOption(appNameOption);     
@@ -155,17 +196,19 @@ public class CliOptions {
         options.addOption(cfrJarOption);      
         options.addOption(sourceTypeOption);
         
-        options.addOption(auditDirectoryOption);
+       //options.addOption(auditDirectoryOption);
         options.addOption(auditDirPathOption);
-        options.addOption(auditFileOption);
+        //options.addOption(auditFileOption);
         options.addOption(tempDirPathOption);
                 
-        options.addOption(regexFileOption);
-        options.addOption(hasRegexFileOption);      
-        options.addOption(regexStringOption);
+        options.addOption(searchPatternOption);
+        options.addOption(searchPatternFileOption);
+        options.addOption(includeGlobOption);
+        options.addOption(includeGlobFileOption);
+        options.addOption(excludeGlobOption);
+        options.addOption(excludeGlobFileOption);
                 
         options.addOption(keeptempOption);
-        options.addOption(isLinuxOption);
         options.addOption(verboseOption);
         return options;
     }
@@ -181,11 +224,10 @@ public class CliOptions {
     public static final void printHelp(final String applicationName) {
         final HelpFormatter formatter = new HelpFormatter();
         final String syntax = applicationName;
-        final String usageHeader = "NetDoc Java network connection documentation tool.";
+        final String usageHeader = "FileInspector Java network connection documentation tool.";
         String usageFooter = "Examples: \n";
-        usageFooter += "    java -jar file-inspector.jar -i [-k, -l, -v]\n";
-        usageFooter += "    java -jar file-inspector.jar -p <YOUR_PROP_FILE> [-k, -l, -v]\n";
-        usageFooter += "    java -jar file-inspector.jar -r <SAVED_JSON_REPORT_FROM_DOCLET> -n MyAppName\n";
+        usageFooter += "    java -jar file-inspector.jar -p [-k, -l, -v]\n";
+        usageFooter += "    java -jar file-inspector.jar -pf <YOUR_PROP_FILE> [-k, -l, -v]\n";
         usageFooter += "See http://jakartaee.net/tools\n";
         formatter.printHelp(syntax, usageHeader, getOptions(), usageFooter);
     }

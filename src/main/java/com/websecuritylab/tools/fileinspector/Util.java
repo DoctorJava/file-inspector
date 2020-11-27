@@ -252,8 +252,15 @@ public class Util {
 	    return new String(Files.readAllBytes(Paths.get(filePath))); 
 	} 
 	
+	public static String getSeparatedStringFromFile(String filePath, String sep, String cmt) throws IOException {
+		if ( filePath.length() == 0 ) return null;
+		List<String> itemList =  readNonCommentLines(filePath, cmt);
+		return String.join(sep,  itemList);
+	}
+	
 	public static List<String> readNonCommentLines(String filePath, String c) throws IOException
 	{
+		if ( filePath.length() == 0 ) return null;
 		List<String> lines = new ArrayList<>();
 		try ( FileReader fr = new FileReader(filePath);
 			  BufferedReader br = new BufferedReader(fr);){
@@ -265,8 +272,7 @@ public class Util {
 					else lines.add(line);
 				}
 			}
-		}  
+		} 
 		return lines;			
 	}
-
 }
