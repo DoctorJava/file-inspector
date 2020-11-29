@@ -38,6 +38,7 @@ public class CliOptions {
    
     public static final String KEEP_TEMP = "keep-temp";
     
+    public static final String MORE_VERBOSE = "more-verbose";
     public static final String VERBOSE = "verbose";
     private static final PrintStream OUT = System.out;
 
@@ -163,13 +164,13 @@ public class CliOptions {
                 .required(false)
                 .hasArg()
                 .longOpt(SEARCH_PATTERN)
-                .desc("Required: SEARCH expression.  For simple strings use | separator)")
+                .desc("SEARCH expression.  For simple strings use | separator without any SPACES)")
                 .build();         
         final Option searchPatternFileOption = Option.builder("sf")
                 .required(false)
                 .hasArg()
                 .longOpt(SEARCH_PATTERN_FILE)
-                .desc("Required: Path to the FILE with SEARCH patterns.")
+                .desc("Path to the FILE with SEARCH patterns.")
                 .build();       
         
         
@@ -186,8 +187,16 @@ public class CliOptions {
                 .required(false)
                 .hasArg(false)
                 .longOpt(VERBOSE)
-                .desc("Includes all the included and excluded file paths in the output.")
+                .desc("Shows INCLUDED files in the CLI output.")
                 .build();
+        final Option moreVerboseOption = Option.builder("vv")
+                .required(false)
+                .hasArg(false)
+                .longOpt(MORE_VERBOSE)
+                .desc("Shows INCLUDED and EXCLUDED files in the CLI output.")
+                .build();
+        
+        
         final Options options = new Options();
         options.addOption(appNameOption);     
         options.addOption(helpOption);

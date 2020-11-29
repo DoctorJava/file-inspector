@@ -68,6 +68,8 @@ public class Main {
 	private static String excludeGlobs;
 	private static boolean excludeGlobFileOnCommandLine = false;
 	
+	private static boolean isVerbose = false;
+	private static boolean isMoreVerbose = false;
 
 	public static void main(String[] args) {
 
@@ -110,7 +112,6 @@ public class Main {
 			props.setProperty( CliOptions.EXCLUDE_GLOB_FILE, cl.getOptionValue(CliOptions.EXCLUDE_GLOB_FILE));
 		}
 
-		boolean isVerbose = false;
 		boolean isKeepTemp = false;
 		boolean isLinux = false;			// Linux is no longer supported with the PowerShell based searching.  But it might be in the future	
 		try {
@@ -120,6 +121,7 @@ public class Main {
 			} 
 
 			if (cl.hasOption(CliOptions.VERBOSE)) isVerbose = true;
+			if (cl.hasOption(CliOptions.MORE_VERBOSE)) isMoreVerbose = true;
 			if (cl.hasOption(CliOptions.KEEP_TEMP)) isKeepTemp = true;
 			//if (cl.hasOption(CliOptions.IS_LINUX)) isLinux = true;	// Linux is no longer supported with the PowerShell based searching.  But it might be in the future
 			//if (cl.hasOption(CliOptions.HAS_REGEX_FILE)) hasRegExFile = true;
@@ -168,7 +170,7 @@ public class Main {
 				if ( sourceType == SOURCE_TYPE.A || sourceType == SOURCE_TYPE.C  ) {
 					File tempDir = Util.createTempDir(TEMP_DIR);
 					for (File file: files ) {
-						searchPath = runDecompile(file, tempDir, isLinux, isKeepTemp, isVerbose);	
+						searchPath = runDecompile(file, tempDir, isLinux, isKeepTemp);	
 						props.setProperty(CliOptions.TEMP_DIR_PATH, searchPath);
 					}       		
 				}              	
@@ -195,7 +197,7 @@ public class Main {
 
 
 
-				Report report = searchRecursiveForString(searchPath, searchPatterns, isLinux, isVerbose);
+				Report report = searchRecursiveForString(searchPath, searchPatterns, isLinux);
 
 				savePropsFile(propFile);
 
@@ -320,7 +322,7 @@ public class Main {
 
 	}
 	
-	private static String runDecompile(File file, File tempDir, boolean isLinux, boolean keepTemp, boolean isVerbose) throws IOException {
+	private static String runDecompile(File file, File tempDir, boolean isLinux, boolean keepTemp) throws IOException {
 		//String tempPath = tempDir.getAbsolutePath().replace("\\", "/"); // replace windows backslash because either works with the cmd
 		String tempPath = tempDir.getCanonicalPath().replace("\\", "/"); // replace windows backslash because either works with the cmd
 
@@ -343,7 +345,7 @@ public class Main {
 
 	}
 
-	private static Report searchRecursiveForString( String rootPath, String searchStr, boolean isLinux, boolean isVerbose) throws IOException, PowerShellException {
+	private static Report searchRecursiveForString( String rootPath, String searchStr, boolean isLinux) throws IOException, PowerShellException {
 	
 		//String searchStr = "'rijndael|blowfish'";
 	
@@ -394,10 +396,13 @@ public class Main {
 			for(PowerShellSearchResult r : psResults) {
 				// System.out.println("CCCCCCCCChecking file: " + r.Path);						
 				if (fm.includesFile(r.Path)) {
-					System.out.println("CCCCCCcchecking ("+( !fm.excludesFile(r.Path) )+") EXCLUDE file: " + r.Path);						
+					//System.out.println("CCCCCCcchecking ("+( !fm.excludesFile(r.Path) )+") EXCLUDE file: " + r.Path);						
 					if ( !fm.excludesFile(r.Path) ) {
-						System.out.println("AAAAAAAdding file: " + r.Path);						
+						if (isVerbose || isMoreVerbose) System.out.println("INCLUDING: " + r.Path);						
 						report.addFileMatch(r);
+					}
+					else {
+						if (isMoreVerbose) System.out.println("EXCLUDING: " + r.Path);						
 					}
 				}
 			}

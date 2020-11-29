@@ -30,6 +30,9 @@ public class FileMatcher {
 	public FileMatcher(String rootPath, String includeGlob, String excludeGlob) {
 		_rootDir = Paths.get(rootPath);
 		setPatterns(includeGlob, excludeGlob);
+		System.out.println("INCLUDING files matching: " + _includeMatcher);
+		System.out.println("EXCLUDING files matching: " + _excludeMatcher);
+
 	}	
 	
 	public FileMatcher(String includePattern, String excludePattern) {
@@ -45,14 +48,12 @@ public class FileMatcher {
 	private boolean isIncluded(Path path) {
 		if ( _includeMatcher == null) {			// If not not specified, include everything that is not specifically excluded
 			if ( _excludeMatcher == null || !_excludeMatcher.matches(path)) {
-				System.out.println("INCLUDING: " + path);
 				return true;
 			}
 		}
 		else {
 			if (_includeMatcher.matches(path)) {
 				if ( _excludeMatcher == null || !_excludeMatcher.matches(path)) {
-					System.out.println("INCLUDING: " + path);
 					return true;
 				}
 			}

@@ -1,0 +1,12 @@
+///
+/// Comments have THREE slashes (///) so that regex can contain double slash // for URLS or Comments
+/// Empty lines will be ignored.  RegEx lines will be trimmed
+///
+
+"([0-9A-Fa-f]{2}){16,}"
+
+
+"[0-9]{30,}"                /// This is a big integer
+///text
+
+HTTP://                     /// Simple Searches are case insensitive

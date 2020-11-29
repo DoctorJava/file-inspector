@@ -1,0 +1,8 @@
+http://google.com
+https://google.com
+Http://google.com
+HTTP://google.com
+HTTPS://google.com
+ftp://myftp.com
+FTP://myftp.com
+///google.com
