@@ -17,7 +17,10 @@ public class FileMatcher {
 	private Path _rootDir;
 	private PathMatcher _includeMatcher = null;				// If remains null, then the include matcher is not run
 	private PathMatcher _excludeMatcher = null;				// If remains null, then the exclude matcher is not run
+	private String _includeGlob = null;						// Used to print the actual Glob being used ( I couldn't seem to get it back from the PatternMatcher)
+	private String _excludeGlob = null;						// Used to print the actual Glob being used ( I couldn't seem to get it back from the PatternMatcher)
 	
+
 //	public FileMatcher(String rootPath, List<String> includeGlobs, List<String>  excludeGlobs) {
 //		_rootDir = Paths.get(rootPath);
 //		//System.out.println("GGGGGonna CONSTRUCT FileMatcher with ("+ (includeGlobs==null)+") incString: " + includeGlobs);
@@ -30,8 +33,6 @@ public class FileMatcher {
 	public FileMatcher(String rootPath, String includeGlob, String excludeGlob) {
 		_rootDir = Paths.get(rootPath);
 		setPatterns(includeGlob, excludeGlob);
-		System.out.println("INCLUDING files matching: " + _includeMatcher);
-		System.out.println("EXCLUDING files matching: " + _excludeMatcher);
 
 	}	
 	
@@ -40,8 +41,14 @@ public class FileMatcher {
 	}		
 	
 	private void setPatterns(String includePatterns, String excludePatterns) {
-		if ( includePatterns != null && includePatterns.length() > 0 ) _includeMatcher = FileSystems.getDefault().getPathMatcher("glob:{" + includePatterns + "}");
-		if ( excludePatterns != null && excludePatterns.length() > 0 ) _excludeMatcher = FileSystems.getDefault().getPathMatcher("glob:{" + excludePatterns + "}");
+		if ( includePatterns != null && includePatterns.length() > 0 ) {
+			_includeGlob = "glob:{" + includePatterns + "}";
+			_includeMatcher = FileSystems.getDefault().getPathMatcher(_includeGlob);
+		}
+		if ( excludePatterns != null && excludePatterns.length() > 0 ) {
+			_excludeGlob = "glob:{" + excludePatterns + "}";
+			_excludeMatcher = FileSystems.getDefault().getPathMatcher(_excludeGlob);
+		}
 	}
 
 
@@ -138,5 +145,15 @@ public class FileMatcher {
 		
 		return new MatchReport(includedFiles,excludedFiles, ignoredFiles);
 	}
+
+	public String getIncludeGlob() {
+		return _includeGlob;
+	}
+
+	public String getExcludeGlob() {
+		return _excludeGlob;
+	}
+	
+	
 
 }

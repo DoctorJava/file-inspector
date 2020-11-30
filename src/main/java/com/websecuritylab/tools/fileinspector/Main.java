@@ -393,6 +393,9 @@ public class Main {
 		try {
 			List<PowerShellSearchResult> psResults = mapper.readValue(jsonStr, new TypeReference<List<PowerShellSearchResult>>(){});
 			FileMatcher fm = new FileMatcher(rootPath, includeGlobs, excludeGlobs);
+			System.out.println("Using INCLUDE: " + fm.getIncludeGlob());
+			System.out.println("Using EXCLUDE: " + fm.getExcludeGlob());
+			
 			for(PowerShellSearchResult r : psResults) {
 				// System.out.println("CCCCCCCCChecking file: " + r.Path);						
 				if (fm.includesFile(r.Path)) {
