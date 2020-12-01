@@ -219,6 +219,8 @@ public class CliOptions {
                 
         options.addOption(keeptempOption);
         options.addOption(verboseOption);
+        options.addOption(moreVerboseOption);
+        
         return options;
     }
     
